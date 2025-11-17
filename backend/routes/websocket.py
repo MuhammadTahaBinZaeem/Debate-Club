@@ -7,10 +7,11 @@ from typing import Dict
 from flask import request
 from flask_socketio import SocketIO, emit, join_room
 
+from backend.config import settings
 from backend.models.session import ParticipantRole, SessionStatus, session_registry
 from backend.routes.api import _serialize_session
 from backend.services import judge
-from backend.utils import timers, validators
+from backend.utils import moderation, timers, validators
 
 logger = logging.getLogger(__name__)
 
@@ -138,10 +139,31 @@ def register_socketio_events(socketio: SocketIO) -> None:
         if session.current_turn != role:
             emit("session:error", {"message": "Not your turn"})
             return
+        participant = session.participants[role]
+        sanitized_message, violations = moderation.censor_message(message)
+        message = sanitized_message
+        warnings_triggered = False
+        if violations:
+            participant.warnings += 1
+            warnings_triggered = True
+            emit(
+                "moderation:warning",
+                {
+                    "count": participant.warnings,
+                    "maxWarnings": settings.max_warnings,
+                    "violations": violations,
+                    "censoredMessage": sanitized_message,
+                    "message": "Prohibited language was detected and has been censored.",
+                },
+                room=request.sid,
+            )
         elapsed = timer_manager.consume_turn_time(session_id)
         argument = session.record_argument(role, message, elapsed)
-        session.participants[role].time_spent_seconds += elapsed
+        participant.time_spent_seconds += elapsed
         session.total_elapsed_seconds += elapsed
+        should_end_for_moderation = (
+            warnings_triggered and participant.warnings >= settings.max_warnings
+        )
         emit(
             "message:new",
             {
@@ -154,7 +176,11 @@ def register_socketio_events(socketio: SocketIO) -> None:
             room=session_id,
         )
         socketio.emit("session:update", _serialize_session(session), room=session_id)
-        if len(session.transcript) >= session.max_turns:
+        if should_end_for_moderation:
+            session.metadata["moderationEnded"] = True
+            session.metadata["moderationOffender"] = role.value
+            _finish_debate(socketio, session_id)
+        elif len(session.transcript) >= session.max_turns:
             _finish_debate(socketio, session_id)
         else:
             _start_turn_timer(socketio, session_id)

@@ -22,6 +22,7 @@ export function createDebateSocket(socketUrl, sessionId, role, handlers = {}) {
     'timer:totalExpired': 'onTotalExpired',
     'debate:finished': 'onDebateFinished',
     'session:error': 'onError',
+    'moderation:warning': 'onModerationWarning',
   };
 
   Object.entries(eventMap).forEach(([event, handlerName]) => {

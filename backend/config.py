@@ -30,6 +30,7 @@ class Settings:
     topic_refresh_limit: int = field(
         default_factory=lambda: int(os.getenv("TOPIC_REFRESH_LIMIT", "1"))
     )
+    max_warnings: int = field(default_factory=lambda: int(os.getenv("MAX_WARNINGS", "3")))
 
     cors_origins: List[str] = field(
         default_factory=lambda: [origin.strip() for origin in os.getenv("CORS_ORIGINS", "*").split(",") if origin.strip()]

@@ -139,6 +139,11 @@ button.secondary.vetoed:disabled {
   margin-bottom: 1.5rem;
 }
 
+.alert.warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
 .landing {
   max-width: 1100px;
   margin: 0 auto;

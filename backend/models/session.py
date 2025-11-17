@@ -41,6 +41,7 @@ class Participant:
     connected: bool = True
     vetoed_topic: Optional[str] = None
     time_spent_seconds: int = 0
+    warnings: int = 0
 
 
 @dataclass

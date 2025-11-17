@@ -34,6 +34,7 @@ def _serialize_session(session: DebateSession) -> Dict[str, Any]:
                 "connected": participant.connected,
                 "timeSpent": participant.time_spent_seconds,
                 "vetoedTopic": participant.vetoed_topic,
+                "warnings": participant.warnings,
             }
             for role, participant in session.participants.items()
         },
@@ -50,6 +51,7 @@ def _serialize_session(session: DebateSession) -> Dict[str, Any]:
         ],
         "result": _serialize_result(session.result) if session.result else None,
         "metadata": session.metadata,
+        "maxWarnings": settings.max_warnings,
     }
 
 
