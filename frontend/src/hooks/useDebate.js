@@ -14,12 +14,19 @@ export function useDebate(session, role, onSessionUpdate) {
   const socketRef = useRef(null);
   const [messages, setMessages] = useState(session?.transcript || []);
   const [turnSeconds, setTurnSeconds] = useState(null);
+  const [totalSeconds, setTotalSeconds] = useState(null);
   const [errors, setErrors] = useState([]);
   const [status, setStatus] = useState('idle');
 
   useEffect(() => {
     setMessages(session?.transcript || []);
   }, [session?.sessionId]);
+
+  useEffect(() => {
+    if (!session || session.status !== 'debating') {
+      setTotalSeconds(null);
+    }
+  }, [session?.sessionId, session?.status]);
 
   useEffect(() => {
     if (session?.transcript) {
@@ -46,11 +53,16 @@ export function useDebate(session, role, onSessionUpdate) {
       onTurnTimer: ({ seconds }) => {
         setTurnSeconds(seconds);
       },
+      onTotalTimer: ({ seconds }) => {
+        setTotalSeconds(seconds);
+      },
       onTurnExpired: () => {
         setErrors((prev) => [...prev, 'Turn timer expired']);
+        setTurnSeconds(0);
       },
       onTotalExpired: () => {
         setErrors((prev) => [...prev, 'Overall debate timer expired']);
+        setTotalSeconds(0);
       },
       onDebateFinished: (payload) => {
         onSessionUpdate?.(payload);
@@ -95,6 +107,7 @@ export function useDebate(session, role, onSessionUpdate) {
   return {
     messages,
     turnSeconds,
+    totalSeconds,
     errors,
     status,
     sendMessage,

@@ -5,6 +5,7 @@ export default function DebateRoom({ session, role, debate = {}, onExit }) {
   const {
     messages = [],
     turnSeconds = null,
+    totalSeconds = null,
     errors = [],
     status = 'idle',
     sendMessage = () => {},
@@ -29,7 +30,10 @@ export default function DebateRoom({ session, role, debate = {}, onExit }) {
             <h2 className="section-title">Debating: {session?.chosenTopic}</h2>
             <p>Role: <strong>{role.toUpperCase()}</strong></p>
           </div>
-          {turnSeconds !== null && <Timer label="Turn" seconds={turnSeconds} />}
+          <div className="row" style={{ gap: '0.75rem' }}>
+            {totalSeconds !== null && <Timer label="Debate" seconds={totalSeconds} />}
+            {turnSeconds !== null && <Timer label="Turn" seconds={turnSeconds} />}
+          </div>
         </header>
 
         {errors.map((error, index) => (

@@ -57,8 +57,16 @@ def register_socketio_events(socketio: SocketIO) -> None:
         participant.connected = True
         join_room(session_id)
         emit("session:update", _serialize_session(session), room=session_id)
-        if session.status == SessionStatus.DEBATING and session.current_turn == ParticipantRole(role):
-            _start_turn_timer(socketio, session_id)
+        if session.status == SessionStatus.DEBATING:
+            remaining_total = timer_manager.get_remaining_total_time(session_id)
+            if remaining_total is None:
+                remaining_total = max(session.total_time_limit - session.total_elapsed_seconds, 0)
+            emit("timer:total", {"seconds": remaining_total}, room=request.sid)
+            if session.current_turn == ParticipantRole(role):
+                remaining_turn = timer_manager.get_remaining_turn_time(session_id)
+                if remaining_turn is None:
+                    remaining_turn = session.per_turn_limit
+                emit("timer:turn", {"seconds": remaining_turn}, room=request.sid)
 
     @_socketio_event(socketio, "veto_topic")
     def veto_topic(data: Dict[str, str]):
@@ -188,7 +196,8 @@ def _start_turn_timer(socketio: SocketIO, session_id: str) -> None:
         socketio.start_background_task(_handle_turn_timeout, socketio, sid)
 
     timer_manager.start_turn_timer(session_id, session.per_turn_limit, _timeout)
-    socketio.emit("timer:turn", {"seconds": session.per_turn_limit}, room=session_id)
+    remaining = timer_manager.get_remaining_turn_time(session_id) or session.per_turn_limit
+    socketio.emit("timer:turn", {"seconds": remaining}, room=session_id)
 
 
 def _begin_debate(socketio: SocketIO, session_id: str) -> None:
@@ -203,6 +212,8 @@ def _begin_debate(socketio: SocketIO, session_id: str) -> None:
         socketio.start_background_task(_handle_total_timeout, socketio, sid)
 
     timer_manager.start_total_timer(session_id, session.total_time_limit, _total_timeout)
+    total_remaining = timer_manager.get_remaining_total_time(session_id) or session.total_time_limit
+    socketio.emit("timer:total", {"seconds": total_remaining}, room=session_id)
     _start_turn_timer(socketio, session_id)
     socketio.emit("debate:started", _serialize_session(session), room=session_id)
 
@@ -224,6 +235,7 @@ def _handle_turn_timeout(socketio: SocketIO, session_id: str) -> None:
 
 
 def _handle_total_timeout(socketio: SocketIO, session_id: str) -> None:
+    socketio.emit("timer:total", {"seconds": 0}, room=session_id)
     socketio.emit("timer:totalExpired", {}, room=session_id)
     _finish_debate(socketio, session_id)
 

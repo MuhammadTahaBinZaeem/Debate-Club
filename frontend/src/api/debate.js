@@ -17,6 +17,7 @@ export function createDebateSocket(socketUrl, sessionId, role, handlers = {}) {
     'debate:started': 'onDebateStarted',
     'message:new': 'onMessage',
     'timer:turn': 'onTurnTimer',
+    'timer:total': 'onTotalTimer',
     'timer:turnExpired': 'onTurnExpired',
     'timer:totalExpired': 'onTotalExpired',
     'debate:finished': 'onDebateFinished',

@@ -1,18 +1,24 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 export default function Timer({ seconds, label }) {
-  const [remaining, setRemaining] = useState(seconds || 0);
+  const [remaining, setRemaining] = useState(Math.max(seconds || 0, 0));
 
   useEffect(() => {
-    setRemaining(seconds || 0);
+    setRemaining(Math.max(seconds || 0, 0));
   }, [seconds]);
 
   useEffect(() => {
-    if (remaining <= 0) return;
+    if (remaining <= 0) return undefined;
     const interval = setInterval(() => {
       setRemaining((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
     return () => clearInterval(interval);
+  }, [remaining]);
+
+  const formatted = useMemo(() => {
+    const minutes = Math.floor(remaining / 60);
+    const secs = remaining % 60;
+    return `${minutes}:${secs.toString().padStart(2, '0')}`;
   }, [remaining]);
 
   return (
@@ -20,7 +26,7 @@ export default function Timer({ seconds, label }) {
       <span role="img" aria-label="timer">
         ⏱️
       </span>
-      <span>{label}: {remaining}s</span>
+      <span>{label}: {formatted}</span>
     </div>
   );
 }

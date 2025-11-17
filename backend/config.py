@@ -18,10 +18,10 @@ class Settings:
     secret_key: str = field(default_factory=lambda: os.getenv("SECRET_KEY", "letsee-secret"))
 
     default_turn_seconds: int = field(
-        default_factory=lambda: int(os.getenv("TURN_SECONDS", "60"))
+        default_factory=lambda: int(os.getenv("TURN_SECONDS", "30"))
     )
     default_total_seconds: int = field(
-        default_factory=lambda: int(os.getenv("TOTAL_SECONDS", "1800"))
+        default_factory=lambda: int(os.getenv("TOTAL_SECONDS", "600"))
     )
     max_turns: int = field(default_factory=lambda: int(os.getenv("MAX_TURNS", "60")))
 
