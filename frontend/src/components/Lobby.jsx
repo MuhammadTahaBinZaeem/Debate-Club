@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import DebateClubLogo from './DebateClubLogo.jsx';
 
 export default function Lobby({
   onCreateInvite,
@@ -18,7 +19,10 @@ export default function Lobby({
   return (
     <div className="landing">
       <section className="hero">
-        <h1 className="hero-title">Debate Platform</h1>
+        <div className="hero-logo" aria-hidden="true">
+          <DebateClubLogo />
+        </div>
+        <h1 className="hero-title">Debate Club</h1>
         <p className="hero-subtitle">
           Engage in real-time anonymous debates with intelligent judging and turn-based gameplay
         </p>
