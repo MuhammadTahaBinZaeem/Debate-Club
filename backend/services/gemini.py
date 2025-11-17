@@ -4,7 +4,8 @@ from __future__ import annotations
 import logging
 import json
 import random
-from typing import Any, Dict, Iterable, List, Optional
+import re
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from backend.config import settings
 from backend.models.session import Argument
@@ -177,63 +178,7 @@ def score_arguments(
 
     # Fallback heuristic scoring when Gemini is unavailable
     _logger.warning("Using heuristic debate scoring due to missing Gemini")
-    totals: Dict[str, float] = {}
-    per_argument: List[Dict[str, object]] = []
-    for argument in arguments_payload:
-        role = argument["role"]
-        base_score = 5.0
-        length_bonus = min(len(argument["content"]) / 300, 3)
-        score = base_score + length_bonus
-        totals[role] = totals.get(role, 0.0) + score
-        per_argument.append(
-            {
-                "turn": argument["turn"],
-                "role": role,
-                "score": round(score, 2),
-                "rating": _label_for_score(score),
-                "feedback": "Heuristic score assigned (Gemini offline).",
-                "strengths": [
-                    "Shared a coherent point despite offline scoring.",
-                ],
-                "improvements": [
-                    "Add evidence or examples to make the claim more persuasive.",
-                ],
-            }
-        )
-    winner = max(totals, key=totals.get) if totals else "tie"
-    return {
-        "per_argument": per_argument,
-        "overall": {role: round(score, 2) for role, score in totals.items()},
-        "winner": winner,
-        "summary": "Scores generated via fallback heuristic.",
-        "review": {
-            "pro": {
-                "strengths": [
-                    "Consistent participation across turns.",
-                ],
-                "improvements": [
-                    "Incorporate more evidence to reinforce claims.",
-                ],
-                "summary": "Stayed active despite heuristic judging.",
-            },
-            "con": {
-                "strengths": [
-                    "Provided clear rebuttals despite heuristic scoring.",
-                ],
-                "improvements": [
-                    "Expand on counterarguments to balance the discussion.",
-                ],
-                "summary": "Kept the exchange balanced with timely rebuttals.",
-            },
-            "overall": "Heuristic review generated while Gemini was unavailable.",
-            "overall_highlights": [
-                "Both speakers maintained civil discourse despite offline scoring.",
-            ],
-            "overall_growth": [
-                "Future debates should cite more specific evidence.",
-            ],
-        },
-    }
+    return _heuristic_debate_scores(arguments_payload, topic)
 
 
 def _normalise_scores(payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -297,6 +242,332 @@ def _normalise_scores(payload: Dict[str, Any]) -> Dict[str, Any]:
         ),
     }
     return normalised
+
+
+EVIDENCE_KEYWORDS: Tuple[str, ...] = (
+    "according to",
+    "study",
+    "report",
+    "data",
+    "survey",
+    "research",
+    "evidence",
+    "analysis",
+    "statistic",
+    "%",
+)
+
+CONNECTOR_KEYWORDS: Tuple[str, ...] = (
+    "because",
+    "therefore",
+    "however",
+    "moreover",
+    "furthermore",
+    "meanwhile",
+    "consequently",
+    "additionally",
+    "firstly",
+    "secondly",
+    "finally",
+    "nevertheless",
+)
+
+FALLACY_KEYWORDS: Tuple[str, ...] = (
+    "ad hominem",
+    "strawman",
+    "slippery slope",
+    "red herring",
+    "false dichotomy",
+    "appeal to emotion",
+    "bandwagon",
+)
+
+TOPIC_RULES: Dict[str, Dict[str, Sequence[str]]] = {
+    "ai": {
+        "match": ("ai", "artificial intelligence", "automation", "machine learning"),
+        "keywords": ("algorithm", "data", "model", "bias", "ethics", "automation"),
+    },
+    "climate": {
+        "match": ("climate", "emission", "carbon", "warming", "environment"),
+        "keywords": ("carbon", "emissions", "renewable", "solar", "climate", "resilience"),
+    },
+    "governance": {
+        "match": ("government", "policy", "regulation", "law", "state"),
+        "keywords": ("policy", "regulation", "compliance", "oversight", "legislation"),
+    },
+    "education": {
+        "match": ("school", "education", "university", "students"),
+        "keywords": ("curriculum", "learning", "teacher", "students", "assessment"),
+    },
+    "economy": {
+        "match": ("economy", "economic", "jobs", "trade", "market"),
+        "keywords": ("investment", "growth", "employment", "inflation", "market"),
+    },
+}
+
+
+def _heuristic_debate_scores(
+    arguments: Sequence[Dict[str, Any]],
+    topic: str,
+) -> Dict[str, Any]:
+    topic_profiles = _identify_topic_profiles(topic)
+    per_argument: List[Dict[str, Any]] = []
+    totals: Dict[str, float] = {}
+    role_strengths: Dict[str, List[str]] = {}
+    role_improvements: Dict[str, List[str]] = {}
+
+    for argument in arguments:
+        evaluation = _score_argument(argument, topic_profiles)
+        per_argument.append(evaluation["result"])
+        role = argument["role"]
+        totals[role] = totals.get(role, 0.0) + evaluation["result"]["score"]
+        role_strengths.setdefault(role, [])
+        role_improvements.setdefault(role, [])
+        role_strengths[role].extend(evaluation["strength_notes"])
+        role_improvements[role].extend(evaluation["improvement_notes"])
+
+    overall = {role: round(score, 2) for role, score in totals.items()}
+    if not overall:
+        winner = "tie"
+    else:
+        ordered = sorted(overall.items(), key=lambda item: item[1], reverse=True)
+        if len(ordered) > 1 and abs(ordered[0][1] - ordered[1][1]) < 0.5:
+            winner = "tie"
+        else:
+            winner = ordered[0][0]
+
+    summary = _build_overall_summary(topic, overall, winner)
+    review = _build_review_section(role_strengths, role_improvements, per_argument, summary)
+
+    return {
+        "per_argument": per_argument,
+        "overall": overall,
+        "winner": winner,
+        "summary": summary,
+        "review": review,
+    }
+
+
+def _score_argument(
+    argument: Dict[str, Any],
+    topic_profiles: Sequence[str],
+) -> Dict[str, Any]:
+    content = argument.get("content", "")
+    role = argument.get("role", "")
+    turn = argument.get("turn")
+    time_taken = argument.get("time_taken") or 0.0
+    text_lower = content.lower()
+
+    score = 5.0
+    strengths: List[str] = []
+    improvements: List[str] = []
+    feature_notes: List[str] = []
+
+    word_count = _count_words(content)
+    length_bonus = min(word_count / 50.0, 3.0)
+    score += length_bonus
+    if length_bonus >= 1.0:
+        strengths.append("Developed the point with substantive detail.")
+    elif word_count < 40:
+        improvements.append("Spend more time elaborating on the claim.")
+    feature_notes.append(f"Length bonus: +{length_bonus:.2f}")
+
+    evidence_hits = _count_keyword_hits(text_lower, EVIDENCE_KEYWORDS) + _count_numeric_tokens(content)
+    evidence_bonus = min(evidence_hits * 0.5, 2.0)
+    score += evidence_bonus
+    if evidence_bonus:
+        strengths.append("Referenced evidence or data.")
+    else:
+        improvements.append("Cite data or examples to anchor the reasoning.")
+    feature_notes.append(f"Evidence bonus: +{evidence_bonus:.2f}")
+
+    connector_hits = _count_keyword_hits(text_lower, CONNECTOR_KEYWORDS)
+    connector_bonus = min(connector_hits * 0.3, 1.0)
+    score += connector_bonus
+    if connector_bonus:
+        strengths.append("Used logical connectors to structure the flow.")
+    else:
+        improvements.append("Signal transitions with connectors to improve clarity.")
+    feature_notes.append(f"Connector bonus: +{connector_bonus:.2f}")
+
+    clarity_bonus = _sentence_clarity_bonus(content)
+    score += clarity_bonus
+    if clarity_bonus >= 0.5:
+        strengths.append("Sentences were clear and well-paced.")
+    else:
+        improvements.append("Balance sentence lengths for smoother delivery.")
+    feature_notes.append(f"Clarity bonus: +{clarity_bonus:.2f}")
+
+    fallacy_hits = _count_keyword_hits(text_lower, FALLACY_KEYWORDS)
+    fallacy_penalty = fallacy_hits * 1.0
+    score -= fallacy_penalty
+    if fallacy_hits:
+        improvements.append("Avoid common logical fallacies in rebuttals.")
+    feature_notes.append(f"Fallacy penalty: -{fallacy_penalty:.2f}")
+
+    time_penalty = _time_efficiency_penalty(time_taken)
+    score -= time_penalty
+    if time_penalty > 0.25:
+        improvements.append("Align pacing closer to the allotted time.")
+    feature_notes.append(f"Time penalty: -{time_penalty:.2f}")
+
+    topic_bonus = _topic_specific_bonus(text_lower, topic_profiles)
+    score += topic_bonus
+    if topic_bonus:
+        strengths.append("Connected arguments to the specific debate theme.")
+    else:
+        improvements.append("Tie arguments explicitly to the topic's core issues.")
+    feature_notes.append(f"Topic relevance bonus: +{topic_bonus:.2f}")
+
+    final_score = max(1.0, min(10.0, round(score, 2)))
+    rating = _label_for_score(final_score)
+
+    feedback = "; ".join(feature_notes)
+    result = {
+        "turn": turn,
+        "role": role,
+        "score": final_score,
+        "rating": rating,
+        "strengths": _deduplicate(strengths),
+        "improvements": _deduplicate(improvements),
+        "feedback": feedback,
+    }
+
+    return {
+        "result": result,
+        "strength_notes": _deduplicate(strengths),
+        "improvement_notes": _deduplicate(improvements),
+    }
+
+
+def _identify_topic_profiles(topic: str) -> List[str]:
+    topic_lower = topic.lower()
+    profiles: List[str] = []
+    for name, rule in TOPIC_RULES.items():
+        if any(keyword in topic_lower for keyword in rule["match"]):
+            profiles.append(name)
+    return profiles
+
+
+def _topic_specific_bonus(text_lower: str, topic_profiles: Sequence[str]) -> float:
+    bonus = 0.0
+    for profile in topic_profiles:
+        keywords = TOPIC_RULES[profile]["keywords"]
+        matches = _count_keyword_hits(text_lower, keywords)
+        bonus += min(matches * 0.2, 0.6)
+    return min(bonus, 1.0)
+
+
+def _count_words(text: str) -> int:
+    tokens = [token for token in re.split(r"\s+", text.strip()) if token]
+    return len(tokens)
+
+
+def _count_numeric_tokens(text: str) -> int:
+    return len(re.findall(r"\b\d+\b", text))
+
+
+def _count_keyword_hits(text_lower: str, keywords: Sequence[str]) -> int:
+    hits = 0
+    for keyword in keywords:
+        if keyword and keyword in text_lower:
+            hits += text_lower.count(keyword)
+    return hits
+
+
+def _sentence_clarity_bonus(text: str) -> float:
+    sentences = [
+        sentence.strip()
+        for sentence in re.split(r"[.!?]", text)
+        if sentence.strip()
+    ]
+    if not sentences:
+        return 0.0
+    words_per_sentence = [max(1, _count_words(sentence)) for sentence in sentences]
+    average = sum(words_per_sentence) / len(words_per_sentence)
+    deviation = abs(average - 20)
+    clarity = max(0.0, 1.0 - (deviation / 20.0))
+    return round(clarity, 2)
+
+
+def _time_efficiency_penalty(time_taken: float) -> float:
+    if not time_taken:
+        return 0.25  # light penalty when timing is unavailable
+    deviation = abs(time_taken - 30.0)
+    penalty = min(deviation / 60.0, 0.5)
+    return round(penalty, 2)
+
+
+def _build_overall_summary(topic: str, totals: Dict[str, float], winner: str) -> str:
+    if not totals:
+        return "No arguments were provided, resulting in a neutral outcome."
+    if winner == "tie":
+        return (
+            f"Both sides were evenly matched on '{topic}', with balanced scores "
+            "after applying the heuristic rubric."
+        )
+    losing_role = next((role for role in totals.keys() if role != winner), None)
+    margin = 0.0
+    if losing_role:
+        margin = round(totals[winner] - totals.get(losing_role, 0.0), 2)
+    return (
+        f"{winner.capitalize()} held the edge on '{topic}' by {margin:.2f} points "
+        "through stronger structure and evidence despite heuristic judging."
+    )
+
+
+def _build_review_section(
+    role_strengths: Dict[str, List[str]],
+    role_improvements: Dict[str, List[str]],
+    per_argument: Sequence[Dict[str, Any]],
+    summary: str,
+) -> Dict[str, Any]:
+    def summarise_role(role: str) -> Dict[str, Any]:
+        strengths = _deduplicate(role_strengths.get(role, []))[:4]
+        improvements = _deduplicate(role_improvements.get(role, []))[:4]
+        summary_text = (
+            f"{role.capitalize()} leveraged {', '.join(strengths[:2])}" if strengths else ""
+        )
+        if improvements and not summary_text:
+            summary_text = f"{role.capitalize()} can improve by {', '.join(improvements[:2])}"
+        if not summary_text:
+            summary_text = f"{role.capitalize()} can improve with more structured analysis."
+        return {
+            "strengths": strengths,
+            "improvements": improvements,
+            "summary": summary_text,
+        }
+
+    highlights = [
+        f"Turn {item['turn']} ({item['role']}): {item['rating']}"
+        for item in per_argument
+        if item.get("rating") in ("Outstanding", "Strong")
+    ][:3]
+    improvements_list = [
+        f"Turn {item['turn']} ({item['role']}): needs clearer evidence"
+        for item in per_argument
+        if item.get("rating") in ("Developing", "Needs Improvement")
+    ][:3]
+
+    return {
+        "pro": summarise_role("pro"),
+        "con": summarise_role("con"),
+        "overall": {
+            "notes": summary,
+            "overall_highlights": highlights,
+            "overall_improvements": improvements_list,
+        },
+    }
+
+
+def _deduplicate(items: Sequence[str]) -> List[str]:
+    seen = set()
+    ordered: List[str] = []
+    for item in items:
+        if item and item not in seen:
+            seen.add(item)
+            ordered.append(item)
+    return ordered
 
 
 def _normalise_review_section(section: Dict[str, Any]) -> Dict[str, Any]:
