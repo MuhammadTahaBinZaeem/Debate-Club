@@ -88,9 +88,9 @@ def register_socketio_events(socketio: SocketIO) -> None:
         ]
         emit("topic:vetoed", {"role": role.value, "topic": topic}, room=session_id)
         if len(remaining) == 1:
-            session_registry.select_topic(session_id, remaining[0])
+            session = session_registry.select_topic(session_id, remaining[0])
             emit("topic:selected", {"topic": remaining[0]}, room=session_id)
-            _begin_debate(socketio, session_id)
+            socketio.emit("session:update", _serialize_session(session), room=session_id)
         else:
             emit("session:update", _serialize_session(session), room=session_id)
 
@@ -107,7 +107,7 @@ def register_socketio_events(socketio: SocketIO) -> None:
             return
         session = session_registry.select_topic(session_id, topic)
         emit("topic:selected", {"topic": topic}, room=session_id)
-        _begin_debate(socketio, session_id)
+        socketio.emit("session:update", _serialize_session(session), room=session_id)
 
     @_socketio_event(socketio, "send_message")
     def send_message(data: Dict[str, str]):
@@ -158,6 +158,24 @@ def register_socketio_events(socketio: SocketIO) -> None:
             emit("session:error", {"message": "Join the session first"})
             return
         _finish_debate(socketio, mapping["session_id"])
+
+    @_socketio_event(socketio, "coin_toss_complete")
+    def coin_toss_complete():
+        mapping = _socket_participants.get(request.sid)
+        if not mapping:
+            emit("session:error", {"message": "Join the session first"})
+            return
+        session_id = mapping["session_id"]
+        try:
+            session = session_registry.get(session_id)
+        except KeyError:
+            emit("session:error", {"message": "Session not found"})
+            return
+        previous_status = session.status
+        session = session_registry.resolve_coin_toss(session_id)
+        socketio.emit("session:update", _serialize_session(session), room=session_id)
+        if previous_status != SessionStatus.DEBATING and session.status == SessionStatus.DEBATING:
+            _begin_debate(socketio, session_id)
 
 
 def _start_turn_timer(socketio: SocketIO, session_id: str) -> None:

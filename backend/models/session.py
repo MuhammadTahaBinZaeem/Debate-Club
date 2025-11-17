@@ -17,6 +17,7 @@ class SessionStatus(str, Enum):
 
     LOBBY = "lobby"
     VETO = "veto"
+    COIN_TOSS = "coin_toss"
     DEBATING = "debating"
     FINISHED = "finished"
 
@@ -207,7 +208,42 @@ class SessionRegistry:
         with self._lock:
             session = self.get(session_id)
             session.chosen_topic = topic
-            session.status = SessionStatus.DEBATING
+            session.status = SessionStatus.COIN_TOSS
+
+            # Ensure we clear any previous toss metadata before assigning new values.
+            session.metadata["coinTossCompleted"] = False
+
+            pro_participant = session.participants.get(ParticipantRole.PROPONENT)
+            con_participant = session.participants.get(ParticipantRole.OPPONENT)
+
+            assigned_pro = pro_participant
+            assigned_con = con_participant
+
+            if pro_participant and con_participant:
+                # Randomly decide whether to swap roles between the two debaters.
+                if secrets.randbelow(2) == 1:
+                    pro_participant.role = ParticipantRole.PROPONENT
+                    con_participant.role = ParticipantRole.OPPONENT
+                else:
+                    pro_participant.role = ParticipantRole.OPPONENT
+                    con_participant.role = ParticipantRole.PROPONENT
+                    session.participants[ParticipantRole.PROPONENT] = con_participant
+                    session.participants[ParticipantRole.OPPONENT] = pro_participant
+                assigned_pro = session.participants.get(ParticipantRole.PROPONENT)
+                assigned_con = session.participants.get(ParticipantRole.OPPONENT)
+            else:
+                # If only one participant is connected we still keep existing
+                # assignments so they can see the pending result when the
+                # opponent joins.
+                if pro_participant:
+                    pro_participant.role = ParticipantRole.PROPONENT
+                if con_participant:
+                    con_participant.role = ParticipantRole.OPPONENT
+
+            session.metadata["coinToss"] = {
+                "pro": assigned_pro.name if assigned_pro else None,
+                "con": assigned_con.name if assigned_con else None,
+            }
             session.current_turn = ParticipantRole.PROPONENT
             return session
 
@@ -216,6 +252,15 @@ class SessionRegistry:
             session = self.get(session_id)
             session.result = result
             session.status = SessionStatus.FINISHED
+            return session
+
+    def resolve_coin_toss(self, session_id: str) -> DebateSession:
+        with self._lock:
+            session = self.get(session_id)
+            if session.status == SessionStatus.COIN_TOSS:
+                session.status = SessionStatus.DEBATING
+                session.metadata["coinTossCompleted"] = True
+                session.current_turn = ParticipantRole.PROPONENT
             return session
 
 

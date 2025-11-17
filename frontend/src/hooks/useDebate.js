@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  completeCoinToss as emitCoinTossComplete,
   createDebateSocket,
   endDebate,
   sendDebateMessage,
@@ -33,7 +34,7 @@ export function useDebate(session, role, onSessionUpdate) {
         onSessionUpdate?.(payload);
       },
       onTopicSelected: () => {
-        setStatus('debating');
+        setStatus('coin_toss');
       },
       onDebateStarted: (payload) => {
         onSessionUpdate?.(payload);
@@ -86,6 +87,11 @@ export function useDebate(session, role, onSessionUpdate) {
     endDebate(socketRef.current);
   }, []);
 
+  const completeCoinToss = useCallback(() => {
+    if (!socketRef.current) return;
+    emitCoinTossComplete(socketRef.current);
+  }, []);
+
   return {
     messages,
     turnSeconds,
@@ -95,5 +101,6 @@ export function useDebate(session, role, onSessionUpdate) {
     veto,
     submitTopic,
     finish,
+    completeCoinToss,
   };
 }

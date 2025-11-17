@@ -10,6 +10,11 @@ export default function TopicSelection({
   canUseCustom,
 }) {
   const [customTopic, setCustomTopic] = useState('');
+  const vetoedTopics = new Set(
+    Object.values(session?.participants || {})
+      .map((participant) => participant?.vetoedTopic)
+      .filter(Boolean)
+  );
 
   return (
     <div className="container">
@@ -17,14 +22,22 @@ export default function TopicSelection({
         <h2 className="section-title">Pick Tonight&apos;s Topic</h2>
         <p>Each side can veto one suggestion. The remaining topic will be debated.</p>
         <div className="topic-grid">
-          {topics.map((topic) => (
-            <div key={topic} className="topic-card">
-              <p>{topic}</p>
-              <button className="secondary" onClick={() => onVeto?.(topic)} disabled={loading}>
-                Veto
-              </button>
-            </div>
-          ))}
+          {topics.map((topic) => {
+            const isVetoed = vetoedTopics.has(topic);
+            return (
+              <div key={topic} className="topic-card">
+                <p>{topic}</p>
+                <button
+                  className={`secondary${isVetoed ? ' vetoed' : ''}`}
+                  onClick={() => onVeto?.(topic)}
+                  disabled={loading || isVetoed}
+                  aria-pressed={isVetoed}
+                >
+                  {isVetoed ? 'Vetoed' : 'Veto'}
+                </button>
+              </div>
+            );
+          })}
         </div>
         <button className="secondary" onClick={() => onRefresh?.()} disabled={loading}>
           Refresh Suggestions

@@ -1,8 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Lobby from './components/Lobby.jsx';
 import TopicSelection from './components/TopicSelection.jsx';
 import DebateRoom from './components/DebateRoom.jsx';
 import Results from './components/Results.jsx';
+import WaitingRoom from './components/WaitingRoom.jsx';
+import TopicPrompt from './components/TopicPrompt.jsx';
+import CoinToss from './components/CoinToss.jsx';
 import { ApiProvider, useApiConfig } from './components/ApiContext.jsx';
 import { useSession } from './hooks/useSession.js';
 import { useDebate } from './hooks/useDebate.js';
@@ -39,7 +42,15 @@ function AppContent() {
   const [playerRole, setPlayerRole] = useState(null);
   const [topics, setTopics] = useState([]);
   const [view, setView] = useState('lobby');
+  const [showTopicPrompt, setShowTopicPrompt] = useState(false);
+  const [pendingCustomTopic, setPendingCustomTopic] = useState(null);
+  const [coinTossAcknowledged, setCoinTossAcknowledged] = useState(false);
   const { baseUrl } = useApiConfig();
+  const pendingTopicRef = useRef(pendingCustomTopic);
+
+  useEffect(() => {
+    pendingTopicRef.current = pendingCustomTopic;
+  }, [pendingCustomTopic]);
 
   const handleSessionUpdate = useCallback(
     (payload) => {
@@ -49,6 +60,7 @@ function AppContent() {
   );
 
   const debate = useDebate(session, playerRole, handleSessionUpdate);
+  const submitDebateTopic = debate.submitTopic;
 
   useEffect(() => {
     if (!session || !playerName) return;
@@ -70,17 +82,28 @@ function AppContent() {
   useEffect(() => {
     if (!session) {
       setView('lobby');
+      setShowTopicPrompt(false);
+      setPendingCustomTopic(null);
+      setCoinTossAcknowledged(false);
       return;
     }
     switch (session.status) {
       case 'lobby':
-        setView('waiting');
+        setView(showTopicPrompt ? 'topicPrompt' : 'waiting');
         break;
       case 'veto':
-        setView('topics');
+        setView(pendingTopicRef.current ? 'waiting' : 'topics');
+        break;
+      case 'coin_toss':
+        setCoinTossAcknowledged(false);
+        setView('coinToss');
         break;
       case 'debating':
-        setView('debate');
+        if (!coinTossAcknowledged && session?.metadata?.coinToss) {
+          setView('coinToss');
+        } else {
+          setView('debate');
+        }
         break;
       case 'finished':
         setView('results');
@@ -88,7 +111,7 @@ function AppContent() {
       default:
         setView('lobby');
     }
-  }, [session?.status]);
+  }, [session?.status, showTopicPrompt, coinTossAcknowledged]);
 
   useEffect(() => {
     if (view === 'topics' && session && session.topicOptions?.length) {
@@ -109,7 +132,9 @@ function AppContent() {
     const next = await createInvite(name);
     setPlayerRole('pro');
     setTopics([]);
-    setView(next.status === 'veto' ? 'topics' : 'waiting');
+    setPendingCustomTopic(null);
+    setShowTopicPrompt(true);
+    setView('topicPrompt');
   };
 
   const handleJoinRandom = async (name) => {
@@ -131,11 +156,42 @@ function AppContent() {
     debate.submitTopic(topic.trim());
   };
 
+  const handlePromptRandom = useCallback(() => {
+    setPendingCustomTopic(null);
+    setShowTopicPrompt(false);
+    setView('waiting');
+  }, []);
+
+  const handlePromptCustom = useCallback((topic) => {
+    if (!topic) return;
+    setPendingCustomTopic(topic);
+    setShowTopicPrompt(false);
+    setView('waiting');
+  }, []);
+
+  useEffect(() => {
+    if (
+      !session ||
+      session.status !== 'veto' ||
+      !pendingCustomTopic ||
+      playerRole !== 'pro'
+    ) {
+      return;
+    }
+    const participantCount = Object.keys(session.participants || {}).length;
+    if (participantCount < 2) return;
+    submitDebateTopic(pendingCustomTopic);
+    setPendingCustomTopic(null);
+  }, [session?.status, session?.participants, pendingCustomTopic, playerRole, submitDebateTopic]);
+
   const handleRestart = () => {
     setSession(null);
     setPlayerName('');
     setPlayerRole(null);
     setTopics([]);
+    setPendingCustomTopic(null);
+    setShowTopicPrompt(false);
+    setCoinTossAcknowledged(false);
     setView('lobby');
   };
 
@@ -154,20 +210,20 @@ function AppContent() {
     }
     if (view === 'waiting') {
       return (
-        <div className="container">
-          <div className="card stack">
-            <h2 className="section-title">Waiting for opponent…</h2>
-            {session?.inviteCode && (
-              <p>
-                Share invite code <strong>{session.inviteCode}</strong>
-              </p>
-            )}
-            <p>We will notify you once both participants are ready.</p>
-            <button className="secondary" onClick={handleRestart}>
-              Leave lobby
-            </button>
-          </div>
-        </div>
+        <WaitingRoom
+          session={session}
+          onCancel={handleRestart}
+          pendingTopic={playerRole === 'pro' ? pendingCustomTopic : null}
+        />
+      );
+    }
+    if (view === 'topicPrompt') {
+      return (
+        <TopicPrompt
+          onUseCustom={handlePromptCustom}
+          onPickRandom={handlePromptRandom}
+          initialTopic={pendingCustomTopic || ''}
+        />
       );
     }
     if (view === 'topics') {
@@ -180,6 +236,20 @@ function AppContent() {
           onVeto={debate.veto}
           onCustomTopic={handleCustomTopic}
           canUseCustom={session?.metadata?.mode === 'invite'}
+        />
+      );
+    }
+    if (view === 'coinToss') {
+      return (
+        <CoinToss
+          session={session}
+          playerName={playerName}
+          onComplete={() => {
+            setCoinTossAcknowledged(true);
+            if (session?.status === 'coin_toss') {
+              debate.completeCoinToss();
+            }
+          }}
         />
       );
     }
@@ -203,7 +273,26 @@ function AppContent() {
       );
     }
     return null;
-  }, [view, session, topics, loading, error, debate, playerRole, fetchTopics, baseUrl, handleRestart]);
+  }, [
+    view,
+    session,
+    topics,
+    loading,
+    error,
+    debate,
+    playerRole,
+    fetchTopics,
+    baseUrl,
+    handleRestart,
+    handleCreateInvite,
+    handleJoinRandom,
+    handleJoinInvite,
+    handlePromptCustom,
+    handlePromptRandom,
+    coinTossAcknowledged,
+    playerName,
+    pendingCustomTopic,
+  ]);
 
   return rendered;
 }

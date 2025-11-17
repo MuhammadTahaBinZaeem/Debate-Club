@@ -48,3 +48,7 @@ export function sendDebateMessage(socket, message) {
 export function endDebate(socket) {
   socket.emit('end_debate');
 }
+
+export function completeCoinToss(socket) {
+  socket.emit('coin_toss_complete');
+}
