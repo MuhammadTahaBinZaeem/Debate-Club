@@ -88,6 +88,7 @@ class DebateSession:
     result: Optional[SessionResult] = None
     custom_topic_allowed: bool = False
     metadata: Dict[str, str] = field(default_factory=dict)
+    topic_refreshes: int = 0
 
     def next_role(self) -> ParticipantRole:
         if self.current_turn == ParticipantRole.PROPONENT:
@@ -128,6 +129,8 @@ class SessionRegistry:
             session = DebateSession(session_id=session_id, invite_code=self._generate_invite_code())
             session.custom_topic_allowed = True
             session.metadata["mode"] = "invite"
+            session.metadata["topicRefreshes"] = 0
+            session.metadata["topicRefreshLimit"] = settings.topic_refresh_limit
             participant = Participant(
                 session_id=session_id,
                 socket_id=None,
@@ -177,6 +180,8 @@ class SessionRegistry:
             session_id = self._generate_session_id()
             session = DebateSession(session_id=session_id, invite_code=self._generate_invite_code())
             session.metadata["mode"] = "random"
+            session.metadata["topicRefreshes"] = 0
+            session.metadata["topicRefreshLimit"] = settings.topic_refresh_limit
             participant = Participant(
                 session_id=session_id,
                 socket_id=None,
@@ -199,11 +204,17 @@ class SessionRegistry:
         with self._lock:
             return list(self._sessions.values())
 
-    def set_topics(self, session_id: str, topics: List[str]) -> None:
+    def set_topics(self, session_id: str, topics: List[str], refreshed: bool = False) -> None:
         with self._lock:
             session = self.get(session_id)
             session.topic_options = topics
             session.status = SessionStatus.VETO
+            if refreshed:
+                session.topic_refreshes = min(
+                    session.topic_refreshes + 1, settings.topic_refresh_limit
+                )
+            session.metadata["topicRefreshes"] = session.topic_refreshes
+            session.metadata["topicRefreshLimit"] = settings.topic_refresh_limit
 
     def select_topic(self, session_id: str, topic: str) -> DebateSession:
         with self._lock:

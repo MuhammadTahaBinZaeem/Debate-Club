@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import json
+import random
 from typing import Any, Dict, Iterable, List, Optional
 
 from backend.config import settings
@@ -15,6 +16,63 @@ except ImportError:  # pragma: no cover - fallback when package missing
 
 _logger = logging.getLogger(__name__)
 _CONFIGURED = False
+
+FALLBACK_TOPICS: List[str] = [
+    "This House believes that governments should strictly regulate artificial intelligence, even at the cost of slower innovation.",
+    "Tech companies, not governments, should bear primary responsibility for harms caused by AI systems.",
+    "The use of AI in warfare should be banned under international law.",
+    "AI will ultimately create more jobs than it destroys.",
+    "Social media algorithms should be transparent and open to public auditing.",
+    "Tech companies should be held legally liable for the spread of deepfakes.",
+    "Governments should have the power to shut down social media during times of unrest.",
+    "The EU AI Act will become the global model for regulating artificial intelligence.",
+    "Countries that cannot develop their own AI models will become digital colonies of AI superpowers.",
+    "UNESCO's new standards on neurotechnology are an overreaction that will unnecessarily slow scientific progress.",
+    "Rich countries should pay climate reparations to developing nations most affected by global warming.",
+    "Developing countries should be allowed to prioritize economic growth over climate commitments.",
+    "The world should phase out all fossil fuels by 2050, with no exceptions.",
+    "Climate change is a bigger threat to global security than terrorism.",
+    "AI will help more than it harms in the fight against climate change.",
+    "Individual lifestyle changes (diet, travel, consumption) matter more than government policy in tackling climate change.",
+    "The current international system (UN, IMF, World Bank) is failing and must be fundamentally redesigned.",
+    "Rising tensions between the US and China over technology will define global politics in the next decade.",
+    "Economic sanctions do more harm than good.",
+    "The world should move toward a single global digital currency.",
+    "Humanitarian intervention should be mandatory when governments commit mass human rights abuses.",
+    "The age of nation-states is ending; global problems need global governance.",
+    "A universal basic income is the best response to AI-driven job losses.",
+    "Billionaires should not exist in a just society.",
+    "Global trade agreements benefit corporations more than ordinary workers.",
+    "Remote work should remain the default for knowledge workers after the pandemic era.",
+    "The gig economy (Uber, Foodpanda, freelancing platforms) exploits workers more than it empowers them.",
+    "Governments should heavily tax automated companies that replace human workers with AI and robots.",
+    "Governments should have no role in regulating online speech beyond existing offline laws.",
+    "Pakistan's recent social media regulations are necessary to combat fake news.",
+    "Social media platforms should be treated as public utilities, not private companies.",
+    "Anonymity on the internet does more harm than good.",
+    "Internet shutdowns can never be justified in a democracy.",
+    "Platforms should be legally required to remove hate speech and misinformation within 24 hours.",
+    "Digital surveillance in the name of national security is a serious threat to human rights.",
+    "Feminism is misunderstood and unfairly demonized in many conservative societies.",
+    "Pakistan's progress on gender equality is more symbolic than real.",
+    "Online harassment is the biggest barrier to women's participation in digital spaces.",
+    "Quotas for women in parliament and corporate boards are necessary to speed up equality.",
+    "Media in Pakistan does more to reinforce gender stereotypes than to challenge them.",
+    "Schools should teach consent, gender equality, and digital safety as compulsory subjects.",
+    "Social movements like Aurat March are essential for democracy.",
+    "Traditional exams should be replaced with project-based assessment.",
+    "Universities focus too much on theory and not enough on real-world skills.",
+    "Studying abroad contributes to \"brain drain\" and harms developing countries.",
+    "Schools should ban smartphones during class time.",
+    "Governments should subsidize higher education for all, not just top performers.",
+    "English-medium education is increasing inequality in countries like Pakistan.",
+    "Pop culture (Netflix, K-dramas, TikTok) has more influence on youth values than family or religion.",
+    "Mental health services should be free and integrated into all schools and universities.",
+    "Pakistan's priority should be education reform rather than mega infrastructure projects.",
+    "Pakistan needs stronger data protection and privacy laws, even if they make business harder.",
+    "Internet shutdowns and platform bans are damaging Pakistan's democracy and economy.",
+    "Pakistan should invest more in renewable energy than in traditional power projects.",
+]
 
 
 class GeminiError(RuntimeError):
@@ -56,11 +114,7 @@ def generate_topics(context: Optional[Dict[str, str]] = None) -> List[str]:
 
     # Fallback topics when the API is not available
     _logger.warning("Using fallback topics because Gemini is unavailable")
-    return [
-        "Should remote teams adopt four-day work weeks?",
-        "Is universal basic income a sustainable policy?",
-        "Do large language models improve developer productivity?",
-    ]
+    return random.sample(FALLBACK_TOPICS, k=3)
 
 
 def score_arguments(

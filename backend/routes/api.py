@@ -6,6 +6,7 @@ from typing import Any, Dict
 
 from flask import Blueprint, Response, jsonify, request, send_file
 
+from backend.config import settings
 from backend.models.session import (
     DebateSession,
     SessionStatus,
@@ -23,6 +24,8 @@ def _serialize_session(session: DebateSession) -> Dict[str, Any]:
         "inviteCode": session.invite_code,
         "status": session.status.value,
         "topicOptions": session.topic_options,
+        "topicRefreshes": session.topic_refreshes,
+        "topicRefreshLimit": settings.topic_refresh_limit,
         "chosenTopic": session.chosen_topic,
         "currentTurn": session.current_turn.value if session.current_turn else None,
         "participants": {
@@ -109,11 +112,32 @@ def get_topics(session_id: str) -> Response:
         session = session_registry.get(session_id)
     except KeyError:
         return jsonify({"error": "Session not found"}), 404
-    if session.topic_options:
-        return jsonify({"topics": session.topic_options})
+    refresh_arg = (request.args.get("refresh") or "").strip().lower()
+    wants_refresh = refresh_arg in {"1", "true", "yes"}
+    refresh_limit = settings.topic_refresh_limit
+    if wants_refresh and session.topic_refreshes >= refresh_limit:
+        return (
+            jsonify({"error": "Topics can only be refreshed once per session."}),
+            429,
+        )
+    if session.topic_options and not wants_refresh:
+        return jsonify(
+            {
+                "topics": session.topic_options,
+                "refreshesUsed": session.topic_refreshes,
+                "refreshLimit": refresh_limit,
+            }
+        )
     topics = gemini.generate_topics(session.metadata)
-    session_registry.set_topics(session_id, topics)
-    return jsonify({"topics": topics})
+    session_registry.set_topics(session_id, topics, refreshed=wants_refresh)
+    session = session_registry.get(session_id)
+    return jsonify(
+        {
+            "topics": topics,
+            "refreshesUsed": session.topic_refreshes,
+            "refreshLimit": refresh_limit,
+        }
+    )
 
 
 @api_bp.post("/sessions/<session_id>/topic")

@@ -55,10 +55,10 @@ export function useSession() {
   );
 
   const loadTopics = useCallback(
-    async (sessionId) => {
+    async (sessionId, refresh = false) => {
       setError(null);
       try {
-        return await fetchTopics(baseUrl, sessionId);
+        return await fetchTopics(baseUrl, sessionId, refresh);
       } catch (err) {
         setError(err.message);
         throw err;

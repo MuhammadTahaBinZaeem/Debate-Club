@@ -15,6 +15,16 @@ export default function TopicSelection({
       .map((participant) => participant?.vetoedTopic)
       .filter(Boolean)
   );
+  const refreshLimit = session?.topicRefreshLimit ?? 0;
+  const refreshesUsed = session?.topicRefreshes ?? 0;
+  const refreshRemaining =
+    refreshLimit > 0 ? Math.max(refreshLimit - refreshesUsed, 0) : null;
+  const refreshDisabled =
+    loading || (refreshLimit > 0 && refreshRemaining === 0);
+  const refreshTitle =
+    refreshLimit > 0 && refreshRemaining === 0
+      ? 'You can only refresh topics once per debate session.'
+      : undefined;
 
   return (
     <div className="container">
@@ -39,9 +49,25 @@ export default function TopicSelection({
             );
           })}
         </div>
-        <button className="secondary" onClick={() => onRefresh?.()} disabled={loading}>
-          Refresh Suggestions
+        <button
+          className="secondary"
+          onClick={() => onRefresh?.()}
+          disabled={refreshDisabled}
+          title={refreshTitle}
+        >
+          {refreshDisabled && refreshLimit > 0 && refreshRemaining === 0
+            ? 'Refresh Unavailable'
+            : 'Refresh Suggestions'}
         </button>
+        {refreshLimit > 0 && (
+          <p style={{ fontSize: '0.9rem', color: '#475569' }}>
+            {refreshRemaining !== null && refreshRemaining > 0
+              ? `You can refresh ${refreshRemaining} more time${
+                  refreshRemaining === 1 ? '' : 's'
+                } this session.`
+              : 'Topic suggestions have already been refreshed once this session.'}
+          </p>
+        )}
 
         {canUseCustom && (
           <div className="stack">

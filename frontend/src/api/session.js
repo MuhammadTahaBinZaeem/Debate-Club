@@ -38,8 +38,9 @@ export function fetchSession(baseUrl, sessionId) {
   return request(baseUrl, `/sessions/${sessionId}`);
 }
 
-export function fetchTopics(baseUrl, sessionId) {
-  return request(baseUrl, `/topics/${sessionId}`);
+export function fetchTopics(baseUrl, sessionId, refresh = false) {
+  const query = refresh ? '?refresh=1' : '';
+  return request(baseUrl, `/topics/${sessionId}${query}`);
 }
 
 export function chooseTopic(baseUrl, sessionId, topic, custom = false) {
