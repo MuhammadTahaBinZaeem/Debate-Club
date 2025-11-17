@@ -30,7 +30,6 @@ def _serialize_session(session: DebateSession) -> Dict[str, Any]:
                 "name": participant.name,
                 "connected": participant.connected,
                 "timeSpent": participant.time_spent_seconds,
-                "vetoedTopic": participant.vetoed_topic,
             }
             for role, participant in session.participants.items()
         },

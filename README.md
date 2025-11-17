@@ -13,22 +13,10 @@ frontend/  # Vite + React single-page app
 
 ### Backend
 
-#### macOS / Linux (bash)
-
 ```bash
 cd backend
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
-python server.py
-```
-
-#### Windows (PowerShell)
-
-```powershell
-cd backend
-python -m venv .venv
-.venv\Scripts\Activate
 pip install -r requirements.txt
 python server.py
 ```
@@ -43,17 +31,7 @@ Environment variables (e.g. stored in `.env`) configure API keys and time limits
 
 ### Front-end
 
-#### macOS / Linux (bash)
-
 ```bash
-cd frontend
-npm install
-npm run dev
-```
-
-#### Windows (PowerShell)
-
-```powershell
 cd frontend
 npm install
 npm run dev

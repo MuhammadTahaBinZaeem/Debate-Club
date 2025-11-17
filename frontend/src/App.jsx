@@ -1,10 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Lobby from './components/Lobby.jsx';
 import TopicSelection from './components/TopicSelection.jsx';
 import DebateRoom from './components/DebateRoom.jsx';
 import Results from './components/Results.jsx';
-import WaitingRoom from './components/WaitingRoom.jsx';
-import TopicPrompt from './components/TopicPrompt.jsx';
 import { ApiProvider, useApiConfig } from './components/ApiContext.jsx';
 import { useSession } from './hooks/useSession.js';
 import { useDebate } from './hooks/useDebate.js';
@@ -41,14 +39,7 @@ function AppContent() {
   const [playerRole, setPlayerRole] = useState(null);
   const [topics, setTopics] = useState([]);
   const [view, setView] = useState('lobby');
-  const [showTopicPrompt, setShowTopicPrompt] = useState(false);
-  const [pendingCustomTopic, setPendingCustomTopic] = useState(null);
   const { baseUrl } = useApiConfig();
-  const pendingTopicRef = useRef(pendingCustomTopic);
-
-  useEffect(() => {
-    pendingTopicRef.current = pendingCustomTopic;
-  }, [pendingCustomTopic]);
 
   const handleSessionUpdate = useCallback(
     (payload) => {
@@ -58,7 +49,6 @@ function AppContent() {
   );
 
   const debate = useDebate(session, playerRole, handleSessionUpdate);
-  const submitDebateTopic = debate.submitTopic;
 
   useEffect(() => {
     if (!session || !playerName) return;
@@ -80,16 +70,14 @@ function AppContent() {
   useEffect(() => {
     if (!session) {
       setView('lobby');
-      setShowTopicPrompt(false);
-      setPendingCustomTopic(null);
       return;
     }
     switch (session.status) {
       case 'lobby':
-        setView(showTopicPrompt ? 'topicPrompt' : 'waiting');
+        setView('waiting');
         break;
       case 'veto':
-        setView(pendingTopicRef.current ? 'waiting' : 'topics');
+        setView('topics');
         break;
       case 'debating':
         setView('debate');
@@ -100,7 +88,7 @@ function AppContent() {
       default:
         setView('lobby');
     }
-  }, [session?.status, showTopicPrompt]);
+  }, [session?.status]);
 
   useEffect(() => {
     if (view === 'topics' && session && session.topicOptions?.length) {
@@ -121,9 +109,7 @@ function AppContent() {
     const next = await createInvite(name);
     setPlayerRole('pro');
     setTopics([]);
-    setPendingCustomTopic(null);
-    setShowTopicPrompt(true);
-    setView('topicPrompt');
+    setView(next.status === 'veto' ? 'topics' : 'waiting');
   };
 
   const handleJoinRandom = async (name) => {
@@ -145,41 +131,11 @@ function AppContent() {
     debate.submitTopic(topic.trim());
   };
 
-  const handlePromptRandom = useCallback(() => {
-    setPendingCustomTopic(null);
-    setShowTopicPrompt(false);
-    setView('waiting');
-  }, []);
-
-  const handlePromptCustom = useCallback((topic) => {
-    if (!topic) return;
-    setPendingCustomTopic(topic);
-    setShowTopicPrompt(false);
-    setView('waiting');
-  }, []);
-
-  useEffect(() => {
-    if (
-      !session ||
-      session.status !== 'veto' ||
-      !pendingCustomTopic ||
-      playerRole !== 'pro'
-    ) {
-      return;
-    }
-    const participantCount = Object.keys(session.participants || {}).length;
-    if (participantCount < 2) return;
-    submitDebateTopic(pendingCustomTopic);
-    setPendingCustomTopic(null);
-  }, [session?.status, session?.participants, pendingCustomTopic, playerRole, submitDebateTopic]);
-
   const handleRestart = () => {
     setSession(null);
     setPlayerName('');
     setPlayerRole(null);
     setTopics([]);
-    setPendingCustomTopic(null);
-    setShowTopicPrompt(false);
     setView('lobby');
   };
 
@@ -198,20 +154,20 @@ function AppContent() {
     }
     if (view === 'waiting') {
       return (
-        <WaitingRoom
-          session={session}
-          onCancel={handleRestart}
-          pendingTopic={playerRole === 'pro' ? pendingCustomTopic : null}
-        />
-      );
-    }
-    if (view === 'topicPrompt') {
-      return (
-        <TopicPrompt
-          onUseCustom={handlePromptCustom}
-          onPickRandom={handlePromptRandom}
-          initialTopic={pendingCustomTopic || ''}
-        />
+        <div className="container">
+          <div className="card stack">
+            <h2 className="section-title">Waiting for opponent…</h2>
+            {session?.inviteCode && (
+              <p>
+                Share invite code <strong>{session.inviteCode}</strong>
+              </p>
+            )}
+            <p>We will notify you once both participants are ready.</p>
+            <button className="secondary" onClick={handleRestart}>
+              Leave lobby
+            </button>
+          </div>
+        </div>
       );
     }
     if (view === 'topics') {
@@ -247,24 +203,7 @@ function AppContent() {
       );
     }
     return null;
-  }, [
-    view,
-    session,
-    topics,
-    loading,
-    error,
-    debate,
-    playerRole,
-    fetchTopics,
-    baseUrl,
-    handleRestart,
-    handleCreateInvite,
-    handleJoinRandom,
-    handleJoinInvite,
-    handlePromptCustom,
-    handlePromptRandom,
-    pendingCustomTopic,
-  ]);
+  }, [view, session, topics, loading, error, debate, playerRole, fetchTopics, baseUrl, handleRestart]);
 
   return rendered;
 }
