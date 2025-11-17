@@ -4,6 +4,7 @@ export default function CoinToss({ session, onComplete, playerName }) {
   const [phase, setPhase] = useState('waiting');
   const hasCompletedRef = useRef(false);
   const hasStartedRef = useRef(false);
+  const lastTossSignatureRef = useRef(null);
 
   const result = session?.metadata?.coinToss || null;
   const completed = Boolean(session?.metadata?.coinTossCompleted);
@@ -26,7 +27,29 @@ export default function CoinToss({ session, onComplete, playerName }) {
     setPhase('waiting');
     hasCompletedRef.current = false;
     hasStartedRef.current = false;
+    lastTossSignatureRef.current = null;
   }, [session?.sessionId]);
+
+  useEffect(() => {
+    if (!result) {
+      lastTossSignatureRef.current = null;
+      return;
+    }
+
+    const signature = `${result.pro || ''}|${result.con || ''}|${completed ? '1' : '0'}`;
+
+    if (lastTossSignatureRef.current === signature) {
+      return;
+    }
+
+    lastTossSignatureRef.current = signature;
+
+    if (!completed) {
+      setPhase('waiting');
+      hasStartedRef.current = false;
+      hasCompletedRef.current = false;
+    }
+  }, [result, completed]);
 
   useEffect(() => {
     if (!result) return undefined;
