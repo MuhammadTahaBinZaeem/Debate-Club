@@ -71,12 +71,29 @@ function AppContent() {
 
   const sessionId = session?.sessionId;
 
-  const fetchTopics = useCallback(async () => {
-    if (!sessionId) return;
-    const response = await loadTopics(sessionId);
-    setTopics(response.topics);
-    setSession((prev) => (prev ? { ...prev, topicOptions: response.topics } : prev));
-  }, [sessionId, loadTopics, setSession]);
+  const fetchTopics = useCallback(
+    async (refresh = false) => {
+      if (!sessionId) return;
+      try {
+        const response = await loadTopics(sessionId, refresh);
+        setTopics(response.topics);
+        setSession((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            topicOptions: response.topics,
+            topicRefreshes:
+              response.refreshesUsed ?? prev.topicRefreshes ?? 0,
+            topicRefreshLimit:
+              response.refreshLimit ?? prev.topicRefreshLimit ?? 1,
+          };
+        });
+      } catch (err) {
+        console.error('Failed to load topics', err);
+      }
+    },
+    [sessionId, loadTopics, setSession]
+  );
 
   useEffect(() => {
     if (!session) {
@@ -248,7 +265,7 @@ function AppContent() {
           topics={topics}
           session={session}
           loading={loading}
-          onRefresh={fetchTopics}
+          onRefresh={() => fetchTopics(true)}
           onVeto={debate.veto}
           onCustomTopic={handleCustomTopic}
           canUseCustom={session?.metadata?.mode === 'invite'}

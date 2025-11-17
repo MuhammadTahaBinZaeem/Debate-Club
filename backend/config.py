@@ -27,6 +27,9 @@ class Settings:
         default_factory=lambda: int(os.getenv("TOTAL_SECONDS", "600"))
     )
     max_turns: int = field(default_factory=lambda: int(os.getenv("MAX_TURNS", "60")))
+    topic_refresh_limit: int = field(
+        default_factory=lambda: int(os.getenv("TOPIC_REFRESH_LIMIT", "1"))
+    )
 
     cors_origins: List[str] = field(
         default_factory=lambda: [origin.strip() for origin in os.getenv("CORS_ORIGINS", "*").split(",") if origin.strip()]
