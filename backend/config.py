@@ -11,6 +11,9 @@ class Settings:
     """Simple settings container populated from environment variables."""
 
     gemini_api_key: str = field(default_factory=lambda: os.getenv("GEMINI_API_KEY", ""))
+    gemini_model: str = field(
+        default_factory=lambda: os.getenv("GEMINI_MODEL", "gemini-1.0-pro")
+    )
     qdrant_url: str = field(default_factory=lambda: os.getenv("QDRANT_URL", ""))
     qdrant_api_key: str = field(default_factory=lambda: os.getenv("QDRANT_API_KEY", ""))
     opus_api_key: str = field(default_factory=lambda: os.getenv("OPUS_API_KEY", ""))

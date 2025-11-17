@@ -43,7 +43,7 @@ def generate_topics(context: Optional[Dict[str, str]] = None) -> List[str]:
         if context and context.get("mode") == "invite" and context.get("hint"):
             prompt += f" The host hinted the debate should involve: {context['hint']}."
         try:
-            model = genai.GenerativeModel("gemini-pro")
+            model = genai.GenerativeModel(settings.gemini_model)
             response = model.generate_content(prompt)
             if response and response.text:
                 topics = _extract_list(response.text)
@@ -92,7 +92,7 @@ def score_arguments(
         if session_metadata:
             prompt += f" Additional context: {session_metadata}."
         try:
-            model = genai.GenerativeModel("gemini-pro")
+            model = genai.GenerativeModel(settings.gemini_model)
             response = model.generate_content(
                 [
                     {"text": prompt},
