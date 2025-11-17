@@ -119,6 +119,14 @@ def render_pdf(session: DebateSession, result: SessionResult) -> bytes:
                             y = height - 1 * inch
                             pdf.setFont("Helvetica", 10)
                         y = _write_line(f"    - {item}", y, 10)
+            summary = role_review.get("summary")
+            if summary:
+                for line in _wrap_text(f"Summary: {summary}", 90):
+                    if y < 1 * inch:
+                        pdf.showPage()
+                        y = height - 1 * inch
+                        pdf.setFont("Helvetica", 10)
+                    y = _write_line(line, y, 10)
             y -= 6
 
         overall_review = review.get("overall")
@@ -133,6 +141,37 @@ def render_pdf(session: DebateSession, result: SessionResult) -> bytes:
                     y = height - 1 * inch
                     pdf.setFont("Helvetica", 10)
                 y = _write_line(line, y, 10)
+
+        highlights = review.get("overallHighlights") or review.get("overall_highlights") or []
+        growth = review.get("overallImprovements") or review.get("overall_growth") or []
+        if highlights or growth:
+            if y < 1 * inch:
+                pdf.showPage()
+                y = height - 1 * inch
+            pdf.setFont("Helvetica-Bold", 12)
+            pdf.drawString(1 * inch, y, "Overall takeaways")
+            y -= 18
+            pdf.setFont("Helvetica", 10)
+            if highlights:
+                y = _write_line("Highlights:", y, 10)
+                for item in highlights:
+                    if y < 1 * inch:
+                        pdf.showPage()
+                        y = height - 1 * inch
+                        pdf.setFont("Helvetica", 10)
+                    y = _write_line(f"  - {item}", y, 10)
+            if growth:
+                if y < 1 * inch:
+                    pdf.showPage()
+                    y = height - 1 * inch
+                    pdf.setFont("Helvetica", 10)
+                y = _write_line("Growth areas:", y, 10)
+                for item in growth:
+                    if y < 1 * inch:
+                        pdf.showPage()
+                        y = height - 1 * inch
+                        pdf.setFont("Helvetica", 10)
+                    y = _write_line(f"  - {item}", y, 10)
 
     pdf.showPage()
     pdf.save()

@@ -15,10 +15,16 @@ export default function Results({ session, onDownload, onRestart }) {
   const perArgument = result.perArgument || [];
   const review = result.review || {};
   const participants = session?.participants || {};
+  const overallHighlights = review.overallHighlights || [];
+  const overallImprovements = review.overallImprovements || [];
+  const hasOverallLists = overallHighlights.length > 0 || overallImprovements.length > 0;
   const hasReview =
     !!review.overall ||
-    (review.pro && (review.pro.strengths?.length || review.pro.improvements?.length)) ||
-    (review.con && (review.con.strengths?.length || review.con.improvements?.length));
+    hasOverallLists ||
+    (review.pro &&
+      (review.pro.strengths?.length || review.pro.improvements?.length || review.pro.summary)) ||
+    (review.con &&
+      (review.con.strengths?.length || review.con.improvements?.length || review.con.summary));
 
   return (
     <div className="container">
@@ -67,7 +73,8 @@ export default function Results({ session, onDownload, onRestart }) {
               const label = roleKey === 'pro' ? 'Proponent' : 'Opponent';
               const strengths = roleReview.strengths || [];
               const improvements = roleReview.improvements || [];
-              if (!strengths.length && !improvements.length) {
+              const summary = roleReview.summary;
+              if (!strengths.length && !improvements.length && !summary) {
                 return null;
               }
               return (
@@ -75,9 +82,10 @@ export default function Results({ session, onDownload, onRestart }) {
                   <strong>
                     {label} ({participant.name || 'Participant'})
                   </strong>
+                  {summary && <p style={{ fontStyle: 'italic' }}>{summary}</p>}
                   {strengths.length > 0 && (
                     <div>
-                      <p><strong>Strengths</strong></p>
+                      <p><strong>What went well</strong></p>
                       <ul>
                         {strengths.map((item, idx) => (
                           <li key={idx}>{item}</li>
@@ -87,7 +95,7 @@ export default function Results({ session, onDownload, onRestart }) {
                   )}
                   {improvements.length > 0 && (
                     <div>
-                      <p><strong>Areas to improve</strong></p>
+                      <p><strong>Opportunities to improve</strong></p>
                       <ul>
                         {improvements.map((item, idx) => (
                           <li key={idx}>{item}</li>
@@ -98,6 +106,28 @@ export default function Results({ session, onDownload, onRestart }) {
                 </div>
               );
             })}
+            {hasOverallLists && (
+              <div className="card" style={{ background: '#f0fdf4' }}>
+                <strong>Overall highlights</strong>
+                {overallHighlights.length > 0 && (
+                  <ul>
+                    {overallHighlights.map((item, idx) => (
+                      <li key={idx}>{item}</li>
+                    ))}
+                  </ul>
+                )}
+                {overallImprovements.length > 0 && (
+                  <div>
+                    <p><strong>Overall growth areas</strong></p>
+                    <ul>
+                      {overallImprovements.map((item, idx) => (
+                        <li key={idx}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
             {review.overall && (
               <div className="card" style={{ background: '#eef2ff' }}>
                 <strong>Overall assessment</strong>

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import json
 from typing import Any, Dict, Iterable, List, Optional
 
 from backend.config import settings
@@ -82,14 +83,24 @@ def score_arguments(
 
     if _configure_if_needed():
         prompt = (
-            "You are an impartial debate adjudicator. Rate each argument from 1"
-            " to 10 considering clarity, evidence, and responsiveness."
-            " Provide a JSON object with keys: 'per_argument' (list with turn,"
-            " role, score, rating, feedback), 'overall' (object with role->score),"
-            " 'winner' (role string or 'tie'), 'summary' (short rationale), and"
-            " 'review' (object detailing strengths and improvements for each"
-            " participant plus an overall assessment)."
-            f" The debate topic was: {topic!r}."
+            "You are an impartial debate adjudicator. Analyse every turn"
+            " independently before reaching a conclusion. For each argument,"
+            " score it from 1-10, assign a concise rating label (Outstanding,"
+            " Strong, Competent, Developing, Needs Improvement), and offer"
+            " direct feedback referencing the speaker's claims."
+            "\nReturn a strict JSON object with these keys:\n"
+            "- per_argument: list where every item contains turn, role, score,"
+            " rating, feedback, strengths (list of positive notes) and"
+            " improvements (list of actionable fixes)."
+            "- overall: aggregate numeric score per role."
+            "- winner: 'pro', 'con' or 'tie'."
+            "- summary: 2-3 sentence justification for the decision."
+            "- review: object with keys pro, con, and overall. pro/con must each"
+            " include strengths (list), improvements (list), and summary"
+            " (string describing how they performed). The overall key should"
+            " summarise the debate plus include overall_highlights (list of good"
+            " moments) and overall_growth (list of weaknesses)."
+            f"\nDebate topic: {topic!r}."
         )
         if session_metadata:
             prompt += f" Additional context: {session_metadata}."
@@ -99,7 +110,7 @@ def score_arguments(
                 [
                     {"text": prompt},
                     {"text": "Transcript:"},
-                    {"text": str(arguments_payload)},
+                    {"text": json.dumps(arguments_payload)},
                 ]
             )
             if response and response.text:
@@ -127,6 +138,12 @@ def score_arguments(
                 "score": round(score, 2),
                 "rating": _label_for_score(score),
                 "feedback": "Heuristic score assigned (Gemini offline).",
+                "strengths": [
+                    "Shared a coherent point despite offline scoring.",
+                ],
+                "improvements": [
+                    "Add evidence or examples to make the claim more persuasive.",
+                ],
             }
         )
     winner = max(totals, key=totals.get) if totals else "tie"
@@ -143,6 +160,7 @@ def score_arguments(
                 "improvements": [
                     "Incorporate more evidence to reinforce claims.",
                 ],
+                "summary": "Stayed active despite heuristic judging.",
             },
             "con": {
                 "strengths": [
@@ -151,8 +169,15 @@ def score_arguments(
                 "improvements": [
                     "Expand on counterarguments to balance the discussion.",
                 ],
+                "summary": "Kept the exchange balanced with timely rebuttals.",
             },
             "overall": "Heuristic review generated while Gemini was unavailable.",
+            "overall_highlights": [
+                "Both speakers maintained civil discourse despite offline scoring.",
+            ],
+            "overall_growth": [
+                "Future debates should cite more specific evidence.",
+            ],
         },
     }
 
@@ -182,6 +207,12 @@ def _normalise_scores(payload: Dict[str, Any]) -> Dict[str, Any]:
             "score": round(score, 2),
             "rating": str(rating) if rating else _label_for_score(score),
             "feedback": entry.get("feedback") or entry.get("comment") or "",
+            "strengths": _ensure_list(entry.get("strengths") or entry.get("positives")),
+            "improvements": _ensure_list(
+                entry.get("improvements")
+                or entry.get("development")
+                or entry.get("weaknesses")
+            ),
         }
         per_argument.append(cleaned)
     normalised["per_argument"] = per_argument
@@ -190,29 +221,46 @@ def _normalise_scores(payload: Dict[str, Any]) -> Dict[str, Any]:
     participants: Dict[str, Dict[str, List[str]]] = {}
     for role_key in ("pro", "con"):
         role_review = review.get(role_key) or review.get(role_key.upper()) or {}
-        strengths = _ensure_list(
-            role_review.get("strengths")
-            or role_review.get("positives")
-            or role_review.get("good")
-        )
-        improvements = _ensure_list(
-            role_review.get("improvements")
-            or role_review.get("development")
-            or role_review.get("weaknesses")
-            or role_review.get("bad")
-        )
-        participants[role_key] = {
-            "strengths": strengths,
-            "improvements": improvements,
-        }
+        participants[role_key] = _normalise_review_section(role_review)
     normalised["review"] = {
-        "pro": participants.get("pro", {"strengths": [], "improvements": []}),
-        "con": participants.get("con", {"strengths": [], "improvements": []}),
+        "pro": participants.get("pro", {"strengths": [], "improvements": [], "summary": ""}),
+        "con": participants.get("con", {"strengths": [], "improvements": [], "summary": ""}),
         "overall": review.get("overall")
         or review.get("summary")
         or normalised.get("summary", ""),
+        "overallHighlights": _ensure_list(
+            review.get("overall_highlights")
+            or review.get("highlights")
+            or review.get("positives")
+            or review.get("good")
+        ),
+        "overallImprovements": _ensure_list(
+            review.get("overall_growth")
+            or review.get("growth")
+            or review.get("opportunities")
+            or review.get("negatives")
+            or review.get("bad")
+        ),
     }
     return normalised
+
+
+def _normalise_review_section(section: Dict[str, Any]) -> Dict[str, Any]:
+    strengths = _ensure_list(
+        section.get("strengths") or section.get("positives") or section.get("good")
+    )
+    improvements = _ensure_list(
+        section.get("improvements")
+        or section.get("development")
+        or section.get("weaknesses")
+        or section.get("bad")
+    )
+    summary = section.get("summary") or section.get("overall") or ""
+    return {
+        "strengths": strengths,
+        "improvements": improvements,
+        "summary": summary,
+    }
 
 
 def _label_for_score(score: float) -> str:
