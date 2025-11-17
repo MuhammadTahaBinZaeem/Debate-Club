@@ -7,6 +7,7 @@ export default function DebateRoom({ session, role, debate = {}, onExit }) {
     turnSeconds = null,
     totalSeconds = null,
     errors = [],
+    warnings = [],
     status = 'idle',
     sendMessage = () => {},
     finish = () => {},
@@ -35,6 +36,20 @@ export default function DebateRoom({ session, role, debate = {}, onExit }) {
             {turnSeconds !== null && <Timer label="Turn" seconds={turnSeconds} />}
           </div>
         </header>
+
+        {warnings.map((warning, index) => (
+          <div key={`warning-${index}`} className="alert warning">
+            <strong>
+              Warning {warning.count}/{warning.maxWarnings}
+            </strong>
+            <p>{warning.message || 'Your last message was censored by the moderator.'}</p>
+            {warning.censoredMessage && (
+              <small style={{ display: 'block' }}>
+                Sent message: {warning.censoredMessage}
+              </small>
+            )}
+          </div>
+        ))}
 
         {errors.map((error, index) => (
           <div key={index} className="alert">

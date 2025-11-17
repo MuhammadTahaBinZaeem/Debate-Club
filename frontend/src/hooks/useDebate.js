@@ -16,10 +16,12 @@ export function useDebate(session, role, onSessionUpdate) {
   const [turnSeconds, setTurnSeconds] = useState(null);
   const [totalSeconds, setTotalSeconds] = useState(null);
   const [errors, setErrors] = useState([]);
+  const [warnings, setWarnings] = useState([]);
   const [status, setStatus] = useState('idle');
 
   useEffect(() => {
     setMessages(session?.transcript || []);
+    setWarnings([]);
   }, [session?.sessionId]);
 
   useEffect(() => {
@@ -71,6 +73,9 @@ export function useDebate(session, role, onSessionUpdate) {
       onError: ({ message }) => {
         if (message) setErrors((prev) => [...prev, message]);
       },
+      onModerationWarning: (payload) => {
+        setWarnings((prev) => [...prev, payload]);
+      },
     });
     socketRef.current = socket;
     return () => {
@@ -109,6 +114,7 @@ export function useDebate(session, role, onSessionUpdate) {
     turnSeconds,
     totalSeconds,
     errors,
+    warnings,
     status,
     sendMessage,
     veto,
