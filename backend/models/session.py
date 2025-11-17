@@ -65,6 +65,7 @@ class SessionResult:
     per_argument_scores: List[Dict[str, object]] = field(default_factory=list)
     rationale: str = ""
     flagged_for_review: bool = False
+    review: Dict[str, object] = field(default_factory=dict)
 
 
 @dataclass

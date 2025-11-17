@@ -57,6 +57,7 @@ def _serialize_result(result) -> Dict[str, Any]:
         "perArgument": result.per_argument_scores,
         "rationale": result.rationale,
         "flagged": result.flagged_for_review,
+        "review": result.review,
     }
 
 

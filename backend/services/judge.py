@@ -75,6 +75,7 @@ class DebateJudge:
             "winner": winner,
             "raw_scores": scores,
             "penalties": missed_turn_penalty,
+            "review": scores.get("review", {}),
         }
         self.logger.info("Decide step complete", extra={"session_id": session.session_id, "winner": winner})
         return decision
@@ -132,6 +133,7 @@ class DebateJudge:
             per_argument_scores=decision.get("per_argument", []),
             rationale=decision.get("summary", ""),
             flagged_for_review=bool(decision.get("needs_review", False)),
+            review=decision.get("review", {}),
         )
         self.logger.info(
             "Deliver step complete",
