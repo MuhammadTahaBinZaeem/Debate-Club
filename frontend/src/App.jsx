@@ -6,6 +6,7 @@ import Results from './components/Results.jsx';
 import WaitingRoom from './components/WaitingRoom.jsx';
 import TopicPrompt from './components/TopicPrompt.jsx';
 import CoinToss from './components/CoinToss.jsx';
+import LoadingScreen from './components/LoadingScreen.jsx';
 import { ApiProvider, useApiConfig } from './components/ApiContext.jsx';
 import { useSession } from './hooks/useSession.js';
 import { useDebate } from './hooks/useDebate.js';
@@ -313,10 +314,28 @@ function AppContent() {
   return rendered;
 }
 
+function AppWithIntro() {
+  const [showLoader, setShowLoader] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowLoader(false), 2400);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <>
+      <LoadingScreen visible={showLoader} />
+      <div className={`app-shell ${showLoader ? '' : 'app-shell--ready'}`}>
+        <AppContent />
+      </div>
+    </>
+  );
+}
+
 export default function App() {
   return (
     <ApiProvider>
-      <AppContent />
+      <AppWithIntro />
     </ApiProvider>
   );
 }
