@@ -15,10 +15,9 @@ function deriveRole(session, playerName) {
   if (!session || !session.participants) return null;
   const entries = Object.entries(session.participants);
   const lower = (playerName || '').toLowerCase();
-  for (const [role, participant] of entries) {
-    if ((participant.name || '').toLowerCase() === lower) {
-      return role;
-    }
+  const matches = entries.filter(([, participant]) => (participant.name || '').toLowerCase() === lower);
+  if (matches.length === 1) {
+    return matches[0][0];
   }
   if (entries.length === 1) {
     return entries[0][0];
@@ -140,7 +139,24 @@ function AppContent() {
   const handleJoinRandom = async (name) => {
     setPlayerName(name);
     const next = await joinRandom(name);
-    setPlayerRole(deriveRole(next, name) || 'pro');
+    const participants = next?.participants || {};
+    const participantRoles = Object.keys(participants);
+    let assignedRole = null;
+
+    if (participantRoles.length === 1) {
+      assignedRole = participantRoles[0];
+    } else if (participantRoles.includes('pro') && participantRoles.includes('con')) {
+      assignedRole = 'con';
+    } else if (participantRoles.length > 0) {
+      [assignedRole] = participantRoles;
+    }
+
+    const normalizedRole = assignedRole || deriveRole(next, name) || 'pro';
+    setPlayerRole(normalizedRole);
+    const assignedParticipant = participants[normalizedRole];
+    if (assignedParticipant?.name) {
+      setPlayerName(assignedParticipant.name);
+    }
     if (next.topicOptions?.length) setTopics(next.topicOptions);
   };
 
