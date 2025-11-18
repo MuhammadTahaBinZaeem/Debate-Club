@@ -6,14 +6,14 @@ from typing import Any, Dict
 
 from flask import Blueprint, Response, jsonify, request, send_file
 
-from backend.config import settings
-from backend.models.session import (
+from config import settings
+from models.session import (
     DebateSession,
     SessionStatus,
     session_registry,
 )
-from backend.services import gemini, judge, pdf_export
-from backend.utils.validators import ValidationError
+from services import gemini, judge, pdf_export
+from utils.validators import ValidationError
 
 api_bp = Blueprint("api", __name__)
 

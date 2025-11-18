@@ -7,11 +7,11 @@ from typing import Dict
 from flask import request
 from flask_socketio import SocketIO, emit, join_room
 
-from backend.config import settings
-from backend.models.session import ParticipantRole, SessionStatus, session_registry
-from backend.routes.api import _serialize_session
-from backend.services import judge
-from backend.utils import moderation, timers, validators
+from config import settings
+from models.session import ParticipantRole, SessionStatus, session_registry
+from routes.api import _serialize_session
+from services import judge
+from utils import moderation, timers, validators
 
 logger = logging.getLogger(__name__)
 

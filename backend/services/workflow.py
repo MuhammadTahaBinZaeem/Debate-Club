@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Dict
 
-from backend.config import settings
+from config import settings
 
 
 def invoke_workflow(event: str, payload: Dict[str, object]) -> Dict[str, object]:

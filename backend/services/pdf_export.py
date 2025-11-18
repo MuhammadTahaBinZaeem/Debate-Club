@@ -10,7 +10,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas
 
-from backend.models.session import Argument, DebateSession, ParticipantRole, SessionResult
+from models.session import Argument, DebateSession, ParticipantRole, SessionResult
 
 
 def render_pdf(session: DebateSession, result: SessionResult) -> bytes:
