@@ -4,13 +4,13 @@ from __future__ import annotations
 import logging
 from typing import Dict, List, Tuple
 
-from backend.models.session import (
+from models.session import (
     DebateSession,
     ParticipantRole,
     SessionResult,
 )
-from backend.services import gemini, qdrant
-from backend.utils import validators
+from services import gemini, qdrant
+from utils import validators
 
 _logger = logging.getLogger(__name__)
 

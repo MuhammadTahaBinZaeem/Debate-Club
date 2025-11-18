@@ -7,8 +7,8 @@ from typing import Iterable, List, Optional
 
 import numpy as np
 
-from backend.config import settings
-from backend.models.session import Argument
+from config import settings
+from models.session import Argument
 
 try:  # pragma: no cover - optional
     from qdrant_client import QdrantClient

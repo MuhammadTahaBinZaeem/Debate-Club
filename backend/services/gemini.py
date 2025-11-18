@@ -7,8 +7,8 @@ import random
 import re
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
-from backend.config import settings
-from backend.models.session import Argument
+from config import settings
+from models.session import Argument
 
 try:  # pragma: no cover - optional dependency during tests
     import google.generativeai as genai

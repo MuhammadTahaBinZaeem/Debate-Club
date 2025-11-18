@@ -6,11 +6,11 @@ from flask import Flask
 from flask_cors import CORS
 from flask_socketio import SocketIO
 
-from backend.config import settings
-from backend.routes.api import api_bp
-from backend.routes.healthcheck import health_bp
-from backend.routes.websocket import register_socketio_events
-from backend.utils.logger import configure_logging
+from config import settings
+from routes.api import api_bp
+from routes.healthcheck import health_bp
+from routes.websocket import register_socketio_events
+from utils.logger import configure_logging
 
 load_dotenv()
 
