@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="debateClubTitle">
+  <title id="debateClubTitle">Debate Club shield logo</title>
+  <defs>
+    <linearGradient id="shieldShadow" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.8" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.2" />
+    </linearGradient>
+    <clipPath id="shieldClip">
+      <path d="M256 28L80 88v154c0 111 73 191 176 234 103-43 176-123 176-234V88L256 28z" />
+    </clipPath>
+  </defs>
+  <g clip-path="url(#shieldClip)">
+    <rect width="256" height="512" fill="#c92b32" />
+    <rect x="256" width="256" height="512" fill="#0d2b53" />
+    <path d="M256 28L80 88v154c0 111 73 191 176 234 103-43 176-123 176-234V88z" fill="url(#shieldShadow)" opacity="0.18" />
+  </g>
+  <path
+    d="M183 134c-45 0-82 37-82 82v42c0 45 37 82 82 82h18l36 32c7 6 18 1 18-8v-24h28c45 0 82-37 82-82v-42c0-45-37-82-82-82z"
+    fill="#f4f5f7"
+    opacity="0.95"
+  />
+  <path
+    d="M212 178c-32 0-58 26-58 58v30c0 32 26 58 58 58h16l28 26c5 4 12 1 12-5v-21h20c32 0 58-26 58-58v-30c0-32-26-58-58-58z"
+    fill="#c92b32"
+    opacity="0.35"
+  />
+  <path
+    d="M300 178c32 0 58 26 58 58v30c0 32-26 58-58 58h-16l-28 26c-5 4-12 1-12-5v-21h-20c-32 0-58-26-58-58v-30c0-32 26-58 58-58z"
+    fill="#0d2b53"
+    opacity="0.35"
+  />
+  <circle cx="226" cy="224" r="28" fill="#ffffff" />
+  <circle cx="286" cy="224" r="28" fill="#ffffff" />
+  <path d="M218 280c24 26 64 26 88 0" fill="none" stroke="#ffffff" stroke-width="18" stroke-linecap="round" />
+  <text
+    x="256"
+    y="454"
+    text-anchor="middle"
+    font-family="'Montserrat', 'Poppins', 'Segoe UI', sans-serif"
+    font-weight="700"
+    font-size="64"
+    letter-spacing="0.18em"
+    fill="#0d2b53"
+  >DEBATE</text>
+  <text
+    x="256"
+    y="500"
+    text-anchor="middle"
+    font-family="'Montserrat', 'Poppins', 'Segoe UI', sans-serif"
+    font-weight="600"
+    font-size="44"
+    letter-spacing="0.28em"
+    fill="#102040"
+  >CLUB</text>
+</svg>
