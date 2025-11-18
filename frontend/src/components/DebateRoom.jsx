@@ -14,7 +14,27 @@ export default function DebateRoom({ session, role, debate = {}, onExit }) {
   } = debate;
   const [draft, setDraft] = useState('');
 
-  const isMyTurn = useMemo(() => session?.currentTurn === role, [session?.currentTurn, role]);
+  const playerLabels = useMemo(() => {
+    return {
+      pro: session?.participants?.pro?.name?.trim() || 'Player 1',
+      con: session?.participants?.con?.name?.trim() || 'Player 2',
+    };
+  }, [session?.participants]);
+
+  const isMyTurn = useMemo(() => {
+    if (!role) return false;
+    return session?.currentTurn === role;
+  }, [session?.currentTurn, role]);
+
+  const yourAssignmentLabel = role
+    ? `${playerLabels[role]} · ${role.toUpperCase()}`
+    : 'Awaiting assignment';
+
+  const speakerLabel = (message) => {
+    const base = playerLabels[message.role] || message.speaker || 'Participant';
+    const roleLabel = message.role ? message.role.toUpperCase() : '';
+    return roleLabel ? `${base} · ${roleLabel}` : base;
+  };
 
   const handleSend = (event) => {
     event.preventDefault();
@@ -29,13 +49,30 @@ export default function DebateRoom({ session, role, debate = {}, onExit }) {
         <header className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <h2 className="section-title">Debating: {session?.chosenTopic}</h2>
-            <p>Role: <strong>{role.toUpperCase()}</strong></p>
+            <div className="role-pill" data-role={role || 'pending'}>
+              <span className="role-pill__eyebrow">You are</span>
+              <strong className="role-pill__value">{yourAssignmentLabel}</strong>
+            </div>
           </div>
           <div className="row" style={{ gap: '0.75rem' }}>
             {totalSeconds !== null && <Timer label="Debate" seconds={totalSeconds} />}
             {turnSeconds !== null && <Timer label="Turn" seconds={turnSeconds} />}
           </div>
         </header>
+
+        <div className="debate-players">
+          {['pro', 'con'].map((debateRole) => (
+            <div
+              key={debateRole}
+              className={`role-card ${debateRole === role ? 'active' : ''}`}
+              data-role={debateRole}
+            >
+              <span className="role-card__label">{debateRole === 'pro' ? 'Player 1' : 'Player 2'}</span>
+              <strong className="role-card__name">{playerLabels[debateRole]}</strong>
+              <small className="role-card__role">{debateRole.toUpperCase()}</small>
+            </div>
+          ))}
+        </div>
 
         {warnings.map((warning, index) => (
           <div key={`warning-${index}`} className="alert warning">
@@ -61,7 +98,7 @@ export default function DebateRoom({ session, role, debate = {}, onExit }) {
           {messages.map((message) => (
             <div key={message.turn} className="message">
               <strong>
-                Turn {message.turn + 1}: {message.role.toUpperCase()} - {message.speaker}
+                Turn {message.turn + 1}: {speakerLabel(message)}
               </strong>
               <p>{message.content}</p>
             </div>

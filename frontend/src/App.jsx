@@ -5,7 +5,6 @@ import DebateRoom from './components/DebateRoom.jsx';
 import Results from './components/Results.jsx';
 import WaitingRoom from './components/WaitingRoom.jsx';
 import TopicPrompt from './components/TopicPrompt.jsx';
-import CoinToss from './components/CoinToss.jsx';
 import LoadingScreen from './components/LoadingScreen.jsx';
 import { ApiProvider, useApiConfig } from './components/ApiContext.jsx';
 import { useSession } from './hooks/useSession.js';
@@ -44,9 +43,11 @@ function AppContent() {
   const [view, setView] = useState('lobby');
   const [showTopicPrompt, setShowTopicPrompt] = useState(false);
   const [pendingCustomTopic, setPendingCustomTopic] = useState(null);
-  const [coinTossAcknowledged, setCoinTossAcknowledged] = useState(false);
   const [roleToast, setRoleToast] = useState(null);
+  const [roleModal, setRoleModal] = useState(null);
   const roleToastTimerRef = useRef(null);
+  const lastRoleAssignmentRef = useRef(null);
+  const coinTossCompletionRef = useRef(false);
   const { baseUrl } = useApiConfig();
   const pendingTopicRef = useRef(pendingCustomTopic);
 
@@ -103,8 +104,10 @@ function AppContent() {
       setView('lobby');
       setShowTopicPrompt(false);
       setPendingCustomTopic(null);
-      setCoinTossAcknowledged(false);
       setRoleToast(null);
+      setRoleModal(null);
+      lastRoleAssignmentRef.current = null;
+      coinTossCompletionRef.current = false;
       return;
     }
     switch (session.status) {
@@ -115,15 +118,10 @@ function AppContent() {
         setView(pendingTopicRef.current ? 'waiting' : 'topics');
         break;
       case 'coin_toss':
-        setCoinTossAcknowledged(false);
-        setView('coinToss');
+        setView('waiting');
         break;
       case 'debating':
-        if (!coinTossAcknowledged && session?.metadata?.coinToss) {
-          setView('coinToss');
-        } else {
-          setView('debate');
-        }
+        setView('debate');
         break;
       case 'finished':
         setView('results');
@@ -131,7 +129,52 @@ function AppContent() {
       default:
         setView('lobby');
     }
-  }, [session?.status, showTopicPrompt, coinTossAcknowledged]);
+  }, [session?.status, showTopicPrompt]);
+
+  useEffect(() => {
+    const assignments = session?.metadata?.coinToss;
+    if (!assignments || !playerName) return;
+
+    const normalizedPlayer = playerName.trim().toLowerCase();
+    const normalizedPro = (assignments.pro || '').trim().toLowerCase();
+    const normalizedCon = (assignments.con || '').trim().toLowerCase();
+
+    let assignedRole = null;
+    if (normalizedPlayer && normalizedPlayer === normalizedPro) {
+      assignedRole = 'pro';
+    } else if (normalizedPlayer && normalizedPlayer === normalizedCon) {
+      assignedRole = 'con';
+    }
+
+    if (!assignedRole || lastRoleAssignmentRef.current === assignedRole) {
+      return;
+    }
+
+    lastRoleAssignmentRef.current = assignedRole;
+    setPlayerRole(assignedRole);
+
+    const readable = assignedRole === 'pro' ? 'Player 1 (PRO)' : 'Player 2 (CON)';
+    const message = `You will argue as ${readable}.`;
+    announceRoleAssignment(message);
+    setRoleModal({
+      title: assignedRole === 'pro' ? 'You are Player 1' : 'You are Player 2',
+      message,
+    });
+  }, [session?.metadata?.coinToss, session?.sessionId, playerName, announceRoleAssignment]);
+
+  const completeCoinToss = debate?.completeCoinToss;
+
+  useEffect(() => {
+    if (session?.status !== 'coin_toss') {
+      coinTossCompletionRef.current = false;
+      return;
+    }
+    if (!session?.metadata?.coinToss || !completeCoinToss || coinTossCompletionRef.current) {
+      return;
+    }
+    completeCoinToss();
+    coinTossCompletionRef.current = true;
+  }, [session?.status, session?.metadata?.coinToss, completeCoinToss]);
 
   useEffect(() => {
     return () => {
@@ -236,11 +279,13 @@ function AppContent() {
     setTopics([]);
     setPendingCustomTopic(null);
     setShowTopicPrompt(false);
-    setCoinTossAcknowledged(false);
     if (roleToastTimerRef.current) {
       clearTimeout(roleToastTimerRef.current);
     }
     setRoleToast(null);
+    setRoleModal(null);
+    lastRoleAssignmentRef.current = null;
+    coinTossCompletionRef.current = false;
     setView('lobby');
   };
 
@@ -297,21 +342,6 @@ function AppContent() {
         />
       );
     }
-    if (view === 'coinToss') {
-      return (
-        <CoinToss
-          session={session}
-          playerName={playerName}
-          onComplete={() => {
-            setCoinTossAcknowledged(true);
-            if (session?.status === 'coin_toss') {
-              debate.completeCoinToss();
-            }
-          }}
-          onRoleAssigned={announceRoleAssignment}
-        />
-      );
-    }
     if (view === 'debate') {
       return (
         <DebateRoom
@@ -349,14 +379,24 @@ function AppContent() {
     handlePromptCustom,
     handlePromptRandom,
     announceRoleAssignment,
-    coinTossAcknowledged,
-    playerName,
     pendingCustomTopic,
   ]);
 
   return (
     <>
       {rendered}
+      {roleModal && (
+        <div className="role-modal" role="dialog" aria-modal="true" aria-live="assertive">
+          <div className="role-modal__card">
+            <p className="role-modal__eyebrow">Assignment ready</p>
+            <h3>{roleModal.title}</h3>
+            <p>{roleModal.message}</p>
+            <button type="button" className="primary" onClick={() => setRoleModal(null)}>
+              Let&apos;s debate
+            </button>
+          </div>
+        </div>
+      )}
       {roleToast && (
         <div className="role-toast" role="status" aria-live="polite">
           {roleToast}
