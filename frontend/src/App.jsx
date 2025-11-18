@@ -45,6 +45,8 @@ function AppContent() {
   const [showTopicPrompt, setShowTopicPrompt] = useState(false);
   const [pendingCustomTopic, setPendingCustomTopic] = useState(null);
   const [coinTossAcknowledged, setCoinTossAcknowledged] = useState(false);
+  const [roleToast, setRoleToast] = useState(null);
+  const roleToastTimerRef = useRef(null);
   const { baseUrl } = useApiConfig();
   const pendingTopicRef = useRef(pendingCustomTopic);
 
@@ -102,6 +104,7 @@ function AppContent() {
       setShowTopicPrompt(false);
       setPendingCustomTopic(null);
       setCoinTossAcknowledged(false);
+      setRoleToast(null);
       return;
     }
     switch (session.status) {
@@ -129,6 +132,14 @@ function AppContent() {
         setView('lobby');
     }
   }, [session?.status, showTopicPrompt, coinTossAcknowledged]);
+
+  useEffect(() => {
+    return () => {
+      if (roleToastTimerRef.current) {
+        clearTimeout(roleToastTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (view === 'topics' && session && session.topicOptions?.length) {
@@ -226,8 +237,21 @@ function AppContent() {
     setPendingCustomTopic(null);
     setShowTopicPrompt(false);
     setCoinTossAcknowledged(false);
+    if (roleToastTimerRef.current) {
+      clearTimeout(roleToastTimerRef.current);
+    }
+    setRoleToast(null);
     setView('lobby');
   };
+
+  const announceRoleAssignment = useCallback((message) => {
+    if (!message) return;
+    setRoleToast(message);
+    if (roleToastTimerRef.current) {
+      clearTimeout(roleToastTimerRef.current);
+    }
+    roleToastTimerRef.current = setTimeout(() => setRoleToast(null), 3200);
+  }, []);
 
   const rendered = useMemo(() => {
     if (view === 'lobby') {
@@ -284,6 +308,7 @@ function AppContent() {
               debate.completeCoinToss();
             }
           }}
+          onRoleAssigned={announceRoleAssignment}
         />
       );
     }
@@ -323,12 +348,22 @@ function AppContent() {
     handleJoinInvite,
     handlePromptCustom,
     handlePromptRandom,
+    announceRoleAssignment,
     coinTossAcknowledged,
     playerName,
     pendingCustomTopic,
   ]);
 
-  return rendered;
+  return (
+    <>
+      {rendered}
+      {roleToast && (
+        <div className="role-toast" role="status" aria-live="polite">
+          {roleToast}
+        </div>
+      )}
+    </>
+  );
 }
 
 function AppWithIntro() {
