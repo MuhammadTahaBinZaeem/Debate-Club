@@ -131,6 +131,15 @@ function AppContent() {
     }
   }, [session?.status, showTopicPrompt]);
 
+  const announceRoleAssignment = useCallback((message) => {
+    if (!message) return;
+    setRoleToast(message);
+    if (roleToastTimerRef.current) {
+      clearTimeout(roleToastTimerRef.current);
+    }
+    roleToastTimerRef.current = setTimeout(() => setRoleToast(null), 3200);
+  }, []);
+
   useEffect(() => {
     const assignments = session?.metadata?.coinToss;
     if (!assignments || !playerName) return;
@@ -288,15 +297,6 @@ function AppContent() {
     coinTossCompletionRef.current = false;
     setView('lobby');
   };
-
-  const announceRoleAssignment = useCallback((message) => {
-    if (!message) return;
-    setRoleToast(message);
-    if (roleToastTimerRef.current) {
-      clearTimeout(roleToastTimerRef.current);
-    }
-    roleToastTimerRef.current = setTimeout(() => setRoleToast(null), 3200);
-  }, []);
 
   const rendered = useMemo(() => {
     if (view === 'lobby') {
