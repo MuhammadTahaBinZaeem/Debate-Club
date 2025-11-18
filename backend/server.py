@@ -1,6 +1,10 @@
 """Flask entrypoint bootstrapping REST and WebSocket interfaces."""
 from __future__ import annotations
 
+import eventlet
+
+eventlet.monkey_patch()
+
 from dotenv import load_dotenv
 from flask import Flask
 from flask_cors import CORS
