@@ -63,8 +63,12 @@ Real-time events (`join_session`, `veto_topic`, `send_message`, `end_debate`, et
 - The app is fully compatible with Gunicorn + Eventlet or with Google Cloud Run. A sample command:
 
   ```bash
-  gunicorn --worker-class eventlet -w 1 backend.server:socketio --bind 0.0.0.0:8000
+  gunicorn --worker-class eventlet -w 1 server:socketio --bind 0.0.0.0:8000
   ```
+
+  > **Tip:** Run this command from the `backend/` directory. If you prefer launching
+  > from the monorepo root, reference the fully qualified module path instead
+  > (`backend.server:socketio`).
 
 - Ensure that environment variables are provided securely (e.g., via Cloud Run secrets).
 - When deploying behind HTTPS, update `CORS_ORIGINS` to include the production front-end URL.

@@ -108,7 +108,9 @@ Set `VITE_API_BASE_URL` (default `http://localhost:8000/api`) and `VITE_SOCKET_U
 ## Deployment Notes
 
 - Build the front-end with `npm run build` and host the static `dist/` directory.
-- Deploy the backend with Eventlet-enabled workers (`gunicorn --worker-class eventlet -w 1 backend.server:socketio`).
+- Deploy the backend with Eventlet-enabled workers. From the `backend/` directory run
+  `gunicorn --worker-class eventlet -w 1 server:socketio`; if starting from the repo root,
+  reference the fully qualified module path instead (`backend.server:socketio`).
 - Provide secrets via your hosting platform (e.g. Cloud Run secrets or GitHub Actions environment).
 
 ## Contributing
