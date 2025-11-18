@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
-export default function CoinToss({ session, onComplete, playerName }) {
+export default function CoinToss({ session, onComplete, playerName, onRoleAssigned }) {
   const [phase, setPhase] = useState('waiting');
   const hasCompletedRef = useRef(false);
   const hasStartedRef = useRef(false);
   const lastTossSignatureRef = useRef(null);
+  const roleAnnouncedRef = useRef(false);
 
   const result = session?.metadata?.coinToss || null;
   const completed = Boolean(session?.metadata?.coinTossCompleted);
@@ -28,6 +29,7 @@ export default function CoinToss({ session, onComplete, playerName }) {
     hasCompletedRef.current = false;
     hasStartedRef.current = false;
     lastTossSignatureRef.current = null;
+    roleAnnouncedRef.current = false;
   }, [session?.sessionId]);
 
   useEffect(() => {
@@ -62,30 +64,26 @@ export default function CoinToss({ session, onComplete, playerName }) {
     setPhase('flipping');
     const timer = setTimeout(() => {
       setPhase('revealed');
-    }, 2500);
+    }, 1600);
     return () => clearTimeout(timer);
   }, [result, completed]);
 
   useEffect(() => {
-    if (phase !== 'revealed' || !result || hasCompletedRef.current) {
+    if (phase !== 'revealed' || !result) {
       return;
     }
-    const { pro, con } = result;
-    const lines = [
-      'Coin toss result!',
-      `Pro: ${pro || 'TBD'}`,
-      `Con: ${con || 'TBD'}`,
-    ];
-    if (playerSide) {
-      lines.push(`You will argue as the ${playerSide.toUpperCase()} side.`);
+    if (!roleAnnouncedRef.current) {
+      roleAnnouncedRef.current = true;
+      const message = playerSide
+        ? `You are the ${playerSide.toUpperCase()} side for this debate.`
+        : 'Coin toss complete. Assignments ready to debate.';
+      onRoleAssigned?.(message);
     }
-    // Notify the players of their assigned roles with a simple alert.
-    if (typeof window !== 'undefined' && typeof window.alert === 'function') {
-      window.alert(lines.join('\n'));
+    if (!hasCompletedRef.current) {
+      hasCompletedRef.current = true;
+      onComplete?.();
     }
-    hasCompletedRef.current = true;
-    onComplete?.();
-  }, [phase, result, onComplete, playerSide]);
+  }, [phase, result, onComplete, playerSide, onRoleAssigned]);
 
   return (
     <div className="coin-toss-wrapper">
