@@ -25,10 +25,22 @@ def create_app() -> Flask:
 
 
 app = create_app()
-socketio = SocketIO(app, cors_allowed_origins=settings.cors_origins, async_mode="eventlet")
-register_socketio_events(socketio)
+# ``flask_socketio.SocketIO`` instances are not WSGI callables, which means
+# Gunicorn cannot import ``server:socketio`` directly.  We keep a reference to
+# the real Socket.IO server for development usage and expose its middleware as
+# the public ``socketio`` attribute that Render/Gunicorn expect to load.
+socketio_server = SocketIO(
+    app,
+    cors_allowed_origins=settings.cors_origins,
+    async_mode="eventlet",
+)
+register_socketio_events(socketio_server)
+# ``sockio_mw`` is a thin WSGI middleware that forwards requests to both the
+# Flask app and the Socket.IO server, making it safe to use as Gunicorn's
+# application entry point.
+socketio = socketio_server.sockio_mw
 
 
 if __name__ == "__main__":  # pragma: no cover - manual execution
     configure_logging()
-    socketio.run(app, host=settings.app_host, port=settings.app_port)
+    socketio_server.run(app, host=settings.app_host, port=settings.app_port)
