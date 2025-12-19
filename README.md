@@ -113,4 +113,4 @@ Set `VITE_API_BASE_URL` (default `http://localhost:8000/api`) and `VITE_SOCKET_U
 
 ## Contributing
 
-This hackathon scaffold focuses on demonstrating integrations. Contributions adding tests, accessibility improvements, or tighter API error handling are welcome.
+This hackathon scaffold focuses on demonstrating integrations. Contributions adding tests, accessibility improvements, or tighter API error handling are welcome. 
